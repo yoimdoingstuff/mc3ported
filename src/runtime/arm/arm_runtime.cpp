@@ -303,7 +303,8 @@ bool ArmRuntime::bootstrap_jni() {
     const auto env = jni_->env_pointer();
 
     log_info("Calling MC3 JNI_OnLoad...");
-    if (!call_symbol("JNI_OnLoad", {vm, 0})) {
+    const std::array<std::uint32_t, 2> jni_onload_args{vm, 0};
+    if (!call_symbol("JNI_OnLoad", jni_onload_args)) {
         log_error("MC3 JNI_OnLoad failed.");
         return false;
     }
