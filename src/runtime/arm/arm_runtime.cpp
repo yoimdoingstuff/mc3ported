@@ -280,7 +280,7 @@ bool ArmRuntime::load_library(
         return false;
     }
 
-    cpu_->set_svc_handler(
+    const auto dispatch_svc =
         [this](std::uint32_t immediate, GuestCpu& guest) {
             if (immediate != 0xFFu || !imports_) {
                 return;
@@ -318,10 +318,21 @@ bool ArmRuntime::load_library(
                 return;
             }
 
+            if (pthread_.handles(*symbol)) {
+                pthread_.handle(*symbol, guest);
+                return;
+            }
+
             log_debug("Guest import call: " + *symbol);
             guest.set_register(0, 0);
-        }
-    );
+        };
+
+    if (!pthread_.configure(memory_, dispatch_svc)) {
+        log_error("Failed to initialize pthread bridge.");
+        return false;
+    }
+
+    cpu_->set_svc_handler(dispatch_svc);
 
     return true;
 }
