@@ -55,11 +55,11 @@ Legend:
 - [~] Implement dlclose compatibility.
 - [~] Implement required dlerror behavior.
 - [~] Map required Bionic/libc symbols.
-- [ ] Map required pthread symbols.
+- [~] Map required pthread symbols.
 - [~] Map required time/clock functions.
 - [ ] Map required memory APIs.
 - [ ] Add missing-symbol logging and callsite diagnostics.
-- [ ] Add ARM EABI helper compatibility.
+- [~] Add ARM EABI helper compatibility.
 - [ ] Add host-address/trampoline support for guest-callable imported functions.
 
 ## Phase 4: Minimal Android environment
