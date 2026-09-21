@@ -47,6 +47,7 @@ add_library(mc3_runtime
     src/runtime/arm/android_fs_bridge.cpp
     src/runtime/arm/libc_bridge.cpp
     src/runtime/arm/dlfcn_bridge.cpp
+    src/runtime/arm/asset_bridge.cpp
     src/runtime/loader/elf32.cpp
     src/runtime/loader/imports.cpp
     src/runtime/loader/memory.cpp
