@@ -50,7 +50,7 @@ int main(int argc, char** argv) {
     const auto obb_root =
         data->looks_like_obb_root
             ? data->obb_root
-            : std::filesystem::path{};
+            : (config->obb_root.empty() ? std::filesystem::path{} : config->obb_root);
 
     if (!arm_runtime.configure_filesystem(
             obb_root,
