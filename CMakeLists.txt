@@ -19,12 +19,23 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+add_library(mc3_miniz STATIC
+    third_party/miniz/miniz.c
+    third_party/miniz/miniz_zip.c
+)
+
+target_include_directories(mc3_miniz
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/miniz
+)
+
 if(MC3_ENABLE_DYNARMIC)
     include(cmake/Dependencies.cmake)
 endif()
 
 add_library(mc3_runtime
     src/runtime/config.cpp
+    src/runtime/apk_archive.cpp
     src/runtime/game_data.cpp
     src/runtime/log.cpp
     src/runtime/arm/arm_runtime.cpp
@@ -38,6 +49,8 @@ target_include_directories(mc3_runtime
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+target_link_libraries(mc3_runtime PUBLIC mc3_miniz)
 
 if(MC3_ENABLE_DYNARMIC)
     target_compile_definitions(mc3_runtime PUBLIC MC3_HAVE_DYNARMIC=1)
