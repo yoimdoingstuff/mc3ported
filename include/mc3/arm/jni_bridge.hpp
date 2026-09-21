@@ -5,7 +5,8 @@
 
 #include <cstdint>
 #include <memory>
-#include <string>\n#include <string_view>
+#include <string>
+#include <string_view>
 #include <vector>
 
 namespace mc3::arm {
