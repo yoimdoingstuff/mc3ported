@@ -665,6 +665,60 @@ std::optional<ElfDynamicInfo> inspect_dynamic(const ElfImage& image) {
     return info;
 }
 
+std::optional<ElfSymbolInfo> find_dynamic_symbol(
+    const ElfImage& image,
+    const ElfDynamicInfo& dynamic,
+    const std::string& name
+) {
+    if (!dynamic.present ||
+        dynamic.symbol_table_address == 0 ||
+        dynamic.symbol_entry_size == 0 ||
+        dynamic.symbol_count == 0 ||
+        dynamic.string_table_address == 0 ||
+        dynamic.string_table_size == 0) {
+        return std::nullopt;
+    }
+
+    std::ifstream file(image.path, std::ios::binary);
+    if (!file) {
+        return std::nullopt;
+    }
+
+    for (std::uint32_t index = 0;
+         index < dynamic.symbol_count;
+         ++index) {
+        const auto symbol = read_symbol(
+            file,
+            image,
+            dynamic.symbol_table_address,
+            dynamic.symbol_entry_size,
+            index
+        );
+
+        if (!symbol || symbol->shndx == SHN_UNDEF) {
+            continue;
+        }
+
+        const auto symbol_name = read_dyn_string(
+            file,
+            image,
+            dynamic.string_table_address,
+            dynamic.string_table_size,
+            symbol->name
+        );
+
+        if (symbol_name && *symbol_name == name) {
+            return ElfSymbolInfo{
+                .value = symbol->value,
+                .size = symbol->size,
+                .shndx = symbol->shndx
+            };
+        }
+    }
+
+    return std::nullopt;
+}
+
 bool apply_arm32_relocations(
     const ElfImage& image,
     const ElfDynamicInfo& dynamic,
