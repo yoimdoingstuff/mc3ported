@@ -22,6 +22,8 @@ endif()
 add_library(mc3_miniz STATIC
     third_party/miniz/miniz.c
     third_party/miniz/miniz_zip.c
+    third_party/miniz/miniz_tdef.c
+    third_party/miniz/miniz_tinfl.c
 )
 
 target_include_directories(mc3_miniz
