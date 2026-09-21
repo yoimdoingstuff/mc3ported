@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <memory>
+#include <string>
+#include <vector>
 
 namespace mc3::arm {
 
@@ -369,17 +371,23 @@ bool ArmRuntime::bootstrap_jni() {
 
     const std::array<BootstrapCall, 6> calls{{
         {"Java_com_gameloft_glf_GL2JNILib_init", {env, 0}, true},
+        {"Java_video_MyVideoView_Init", {env}, false},
         {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_Init", {env, 0}, true},
         {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_nativeMC3Init", {env, 0}, true},
         {"Java_com_gameloft_glf_GL2JNILib_getViewSettings", {}, false},
-        {"Java_com_gameloft_glf_GL2JNILib_resize", {env, 0, 960, 544}, false},
-        {"Java_video_MyVideoView_Init", {env}, false}
+        {"Java_com_gameloft_glf_GL2JNILib_resize", {env, 0, 960, 544}, false}
     }};
+
+    const auto dynamic = loader::inspect_dynamic(*image_);
+    if (!dynamic || !dynamic->present) {
+        log_error("Unable to inspect MC3 exports during native bootstrap.");
+        return false;
+    }
 
     for (const auto& bootstrap : calls) {
         if (!loader::find_dynamic_symbol(
                 *image_,
-                *loader::inspect_dynamic(*image_),
+                *dynamic,
                 bootstrap.symbol
             )) {
             if (bootstrap.required) {
