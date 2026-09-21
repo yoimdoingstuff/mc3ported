@@ -42,6 +42,7 @@ add_library(mc3_runtime
     src/runtime/log.cpp
     src/runtime/arm/arm_runtime.cpp
     src/runtime/arm/guest_cpu.cpp
+    src/runtime/arm/jni_bridge.cpp
     src/runtime/loader/elf32.cpp
     src/runtime/loader/imports.cpp
     src/runtime/loader/memory.cpp
