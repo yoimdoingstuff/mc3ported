@@ -19,7 +19,7 @@ void print_usage() {
     log_info(
         "Usage: mc3 --game-data <directory-or-apk> "
         "[--runtime-root <directory>] "
-        "[--save-root <directory>]"
+        "[--save-root <directory>] [--obb-root <directory>]"
     );
     log_info(
         "The game-data input may be an extracted APK directory or a "
@@ -40,6 +40,7 @@ std::filesystem::path default_save_root() {
 std::optional<Config> load_config(int argc, char** argv) {
     Config config{
         .game_data = env_path("MC3_GAME_DATA"),
+        .obb_root = env_path("MC3_OBB_ROOT"),
         .runtime_root = env_path("MC3_RUNTIME_ROOT"),
         .save_root = env_path("MC3_SAVE_ROOT")
     };
@@ -71,6 +72,7 @@ std::optional<Config> load_config(int argc, char** argv) {
         if (consume_path("--game-data", config.game_data)) continue;
         if (consume_path("--runtime-root", config.runtime_root)) continue;
         if (consume_path("--save-root", config.save_root)) continue;
+        if (consume_path("--obb-root", config.obb_root)) continue;
 
         if (argument == "--help" || argument == "-h") {
             print_usage();
