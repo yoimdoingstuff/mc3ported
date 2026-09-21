@@ -8,7 +8,9 @@
 #include <filesystem>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string>
+#include <vector>
 
 namespace mc3::arm {
 
@@ -28,6 +30,12 @@ public:
 
     bool initialize();
     bool load_library(const std::filesystem::path& path);
+
+    bool call_symbol(
+        const std::string& symbol,
+        std::span<const std::uint32_t> arguments = {}
+    );
+
     bool call_entrypoint(const std::string& symbol);
 
     const RuntimeInfo& info() const { return info_; }
