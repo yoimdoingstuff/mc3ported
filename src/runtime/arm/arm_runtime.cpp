@@ -358,6 +358,59 @@ bool ArmRuntime::bootstrap_jni() {
         "JNIEnv=0x" + std::to_string(env)
     );
 
+    // The Android launcher normally invokes these native entry points after
+    // JNI_OnLoad. Reproduce that startup sequence in the desktop guest so the
+    // ARM library reaches the same native initialization path as the APK.
+    struct BootstrapCall {
+        const char* symbol;
+        std::vector<std::uint32_t> arguments;
+        bool required;
+    };
+
+    const std::array<BootstrapCall, 6> calls{{
+        {"Java_com_gameloft_glf_GL2JNILib_init", {env, 0}, true},
+        {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_Init", {env, 0}, true},
+        {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_nativeMC3Init", {env, 0}, true},
+        {"Java_com_gameloft_glf_GL2JNILib_getViewSettings", {}, false},
+        {"Java_com_gameloft_glf_GL2JNILib_resize", {env, 0, 960, 544}, false},
+        {"Java_video_MyVideoView_Init", {env}, false}
+    }};
+
+    for (const auto& bootstrap : calls) {
+        if (!loader::find_dynamic_symbol(
+                *image_,
+                *loader::inspect_dynamic(*image_),
+                bootstrap.symbol
+            )) {
+            if (bootstrap.required) {
+                log_error(
+                    "Required MC3 native bootstrap export is missing: " +
+                    std::string(bootstrap.symbol)
+                );
+                return false;
+            }
+
+            log_debug(
+                "Optional MC3 native bootstrap export is missing: " +
+                std::string(bootstrap.symbol)
+            );
+            continue;
+        }
+
+        log_info(
+            "Calling MC3 native bootstrap export: " +
+            std::string(bootstrap.symbol)
+        );
+
+        if (!call_symbol(bootstrap.symbol, bootstrap.arguments)) {
+            log_error(
+                "MC3 native bootstrap export failed: " +
+                std::string(bootstrap.symbol)
+            );
+            return false;
+        }
+    }
+
     return true;
 }
 
