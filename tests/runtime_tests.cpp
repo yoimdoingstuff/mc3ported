@@ -166,6 +166,33 @@ int main() {
     jni_bridge.handle("jni.fn.4", jni_cpu);
     assert(jni_cpu.register_value(0) == 0x00010006u);
 
+    const auto jni_probe = jni_memory.allocate_tail(8, 2);
+    assert(jni_probe.has_value());
+
+    const std::uint16_t jni_thumb[] = {
+        0x6801, // ldr r1, [r0, #0]    ; JNIEnv function table
+        0x690A, // ldr r2, [r1, #16]   ; GetVersion (slot 4)
+        0x4790, // blx r2
+        0x4770  // bx lr
+    };
+
+    assert(jni_memory.write(
+        *jni_probe,
+        jni_thumb,
+        sizeof(jni_thumb)
+    ));
+
+    mc3::arm::GuestCpu jni_guest;
+    assert(jni_guest.initialize(&jni_memory));
+    assert(
+        jni_guest.call(
+            *jni_probe,
+            true,
+            {jni_bridge.env_pointer()}
+        )
+    );
+    assert(jni_guest.register_value(0) == 0x00010006u);
+
     mc3::arm::GuestCpu jni_vm_cpu;
     assert(jni_vm_cpu.initialize(&jni_memory));
     const auto env_out = jni_memory.allocate_tail(4, 4);
