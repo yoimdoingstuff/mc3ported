@@ -10,6 +10,7 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#include <thread>
 
 namespace mc3::arm {
 namespace {
@@ -899,7 +900,7 @@ void LibcBridge::handle(
 
         guest.set_register(
             0,
-            write_guest(r2, &ts, sizeof(ts)) ? 0 : -1
+            write_guest(r1, &ts, sizeof(ts)) ? 0 : -1
         );
         return;
     }
