@@ -13,6 +13,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace mc3::arm {
 
@@ -25,6 +26,7 @@ public:
 
     Dynarmic::A32::Jit* cpu = nullptr;
     loader::GuestMemory* memory_ = nullptr;
+    SvcHandler svc_handler{};
     std::uint64_t ticks_remaining = 0;
     bool faulted = false;
 
@@ -121,11 +123,16 @@ public:
     }
 
     void CallSVC(std::uint32_t swi) override {
-        faulted = true;
-        log_error(
-            "Unhandled guest SVC #" +
-            std::to_string(swi)
-        );
+        if (!svc_handler || !cpu) {
+            faulted = true;
+            log_error(
+                "Unhandled guest SVC #" +
+                std::to_string(swi)
+            );
+            return;
+        }
+
+        svc_handler(swi, *owner);
     }
 
     void ExceptionRaised(
@@ -151,13 +158,17 @@ public:
     std::uint64_t GetTicksRemaining() override {
         return ticks_remaining;
     }
+
+    GuestCpu* owner = nullptr;
 };
 
 } // namespace
 
 struct GuestCpu::Impl {
-    explicit Impl(loader::GuestMemory* memory)
+    explicit Impl(loader::GuestMemory* memory, GuestCpu* owner)
         : callbacks(memory) {
+        callbacks.owner = owner;
+
         Dynarmic::A32::UserConfig config{};
         config.callbacks = &callbacks;
         config.arch_version = Dynarmic::A32::ArchVersion::v7;
@@ -183,7 +194,7 @@ bool GuestCpu::initialize(loader::GuestMemory* memory) {
     }
 
     try {
-        impl_ = std::make_unique<Impl>(memory);
+        impl_ = std::make_unique<Impl>(memory, this);
         return true;
     } catch (const std::exception& error) {
         log_error(
@@ -216,6 +227,12 @@ bool GuestCpu::run(
     impl_->cpu->Run();
 
     return !impl_->callbacks.faulted;
+}
+
+void GuestCpu::set_svc_handler(SvcHandler handler) {
+    if (impl_) {
+        impl_->callbacks.svc_handler = std::move(handler);
+    }
 }
 
 std::uint32_t GuestCpu::register_value(std::size_t index) const {
@@ -273,6 +290,8 @@ bool GuestCpu::run(
 ) {
     return false;
 }
+
+void GuestCpu::set_svc_handler(SvcHandler) {}
 
 std::uint32_t GuestCpu::register_value(std::size_t) const {
     return 0;
