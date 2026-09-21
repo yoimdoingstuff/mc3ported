@@ -13,7 +13,13 @@ FetchContent_Declare(
     dynarmic
     GIT_REPOSITORY https://github.com/azahar-emu/dynarmic.git
     GIT_TAG e77b1ba0b7da7cbe93021b01a663acfe7c4dd516
-    GIT_SUBMODULES fmt;mcl;robin-map;xbyak;zycore;zydis
+    GIT_SUBMODULES
+        externals/fmt
+        externals/mcl
+        externals/robin-map
+        externals/xbyak
+        externals/zycore
+        externals/zydis
 )
 
 FetchContent_MakeAvailable(dynarmic)
