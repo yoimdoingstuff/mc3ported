@@ -189,6 +189,35 @@ bool ArmRuntime::load_library(const std::filesystem::path& path) {
 
     std::snprintf(buffer, sizeof(buffer), "%08x", parsed->entry + load_bias_);
     log_info("ARM ELF entry: 0x" + std::string(buffer));
+
+    if (const auto dynamic = loader::inspect_dynamic(*parsed)) {
+        if (dynamic->present) {
+            log_info(
+                "ARM ELF dynamic imports: " +
+                std::to_string(dynamic->imports.size())
+            );
+            log_info(
+                "ARM ELF relative relocations: " +
+                std::to_string(dynamic->relative_relocations)
+            );
+
+            for (const auto& library : dynamic->needed_libraries) {
+                log_info("ARM ELF dependency: " + library);
+            }
+
+            for (const auto& import : dynamic->imports) {
+                log_info(
+                    "ARM ELF import[" +
+                    std::to_string(import.relocation_type) +
+                    "]: " + import.name
+                );
+            }
+        }
+    } else {
+        log_error("Failed to inspect ARM ELF dynamic section.");
+        return false;
+    }
+
     return true;
 }
 

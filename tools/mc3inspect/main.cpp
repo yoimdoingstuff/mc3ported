@@ -2,7 +2,6 @@
 #include "mc3/game_data.hpp"
 #include "mc3/loader/elf32.hpp"
 
-#include <cstdint>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -17,23 +16,53 @@ void usage() {
 }
 
 void print_elf(const mc3::loader::ElfImage& image) {
-    std::cout << "type=" << (image.is_dynamic() ? "ET_DYN" : "ET_EXEC") << "\n"
-              << "machine=ARM\n"
-              << "entry=0x" << std::hex << image.entry << std::dec << "\n"
-              << "segments=" << image.load_segments.size() << "\n"
-              << "lowest=0x" << std::hex << image.lowest_address
-              << " highest=0x" << image.highest_address << std::dec << "\n";
+    std::cout
+        << "type=" << (image.is_dynamic() ? "ET_DYN" : "ET_EXEC") << "\n"
+        << "machine=ARM\n"
+        << "entry=0x" << std::hex << image.entry << std::dec << "\n"
+        << "segments=" << image.load_segments.size() << "\n"
+        << "dynamic=" << (image.has_dynamic_section() ? "yes" : "no") << "\n"
+        << "lowest=0x" << std::hex << image.lowest_address
+        << " highest=0x" << image.highest_address << std::dec << "\n";
 
     for (std::size_t i = 0; i < image.load_segments.size(); ++i) {
         const auto& segment = image.load_segments[i];
-        std::cout << "segment[" << i << "]"
-                  << " offset=0x" << std::hex << segment.file_offset
-                  << " vaddr=0x" << segment.virtual_address
-                  << " filesz=0x" << segment.file_size
-                  << " memsz=0x" << segment.memory_size
-                  << " flags=0x" << segment.flags
-                  << " align=0x" << segment.alignment
-                  << std::dec << "\n";
+        std::cout
+            << "segment[" << i << "]"
+            << " offset=0x" << std::hex << segment.file_offset
+            << " vaddr=0x" << segment.virtual_address
+            << " filesz=0x" << segment.file_size
+            << " memsz=0x" << segment.memory_size
+            << " flags=0x" << segment.flags
+            << " align=0x" << segment.alignment
+            << std::dec << "\n";
+    }
+
+    const auto dynamic = mc3::loader::inspect_dynamic(image);
+    if (!dynamic) {
+        std::cout << "dynamic_inspection=failed\n";
+        return;
+    }
+
+    if (!dynamic->present) {
+        std::cout << "dynamic_inspection=none\n";
+        return;
+    }
+
+    std::cout
+        << "symbol_count=" << dynamic->symbol_count << "\n"
+        << "relative_relocations=" << dynamic->relative_relocations << "\n"
+        << "imports=" << dynamic->imports.size() << "\n";
+
+    for (const auto& library : dynamic->needed_libraries) {
+        std::cout << "needed=" << library << "\n";
+    }
+
+    for (const auto& import : dynamic->imports) {
+        std::cout
+            << "import type=" << import.relocation_type
+            << " offset=0x" << std::hex << import.relocation_offset
+            << std::dec << " symbol=" << import.name << "\n";
     }
 }
 
@@ -51,7 +80,9 @@ int main(int argc, char** argv) {
 
     if (argc == 3 && std::string(argv[1]) == "--elf") {
         const auto image = mc3::loader::parse_arm32_elf(argv[2]);
-        if (!image) return 1;
+        if (!image) {
+            return 1;
+        }
         print_elf(*image);
         return 0;
     }
@@ -62,16 +93,20 @@ int main(int argc, char** argv) {
     }
 
     const auto info = mc3::inspect_game_data(argv[1]);
-    if (!info) return 1;
+    if (!info) {
+        return 1;
+    }
 
-    std::cout << "root=" << info->root.string() << "\n"
-              << "apk_extract=" << (info->looks_like_apk_extract ? "yes" : "no") << "\n"
-              << "obb_root=" << (info->looks_like_obb_root ? "yes" : "no") << "\n";
+    std::cout
+        << "root=" << info->root.string() << "\n"
+        << "apk_extract=" << (info->looks_like_apk_extract ? "yes" : "no") << "\n"
+        << "obb_root=" << (info->looks_like_obb_root ? "yes" : "no") << "\n";
 
     if (info->armv7_library) {
-        std::cout << "armv7_library=" << info->armv7_library->path.string() << "\n"
-                  << "abi=" << info->armv7_library->abi << "\n"
-                  << "size=" << info->armv7_library->size << "\n";
+        std::cout
+            << "armv7_library=" << info->armv7_library->path.string() << "\n"
+            << "abi=" << info->armv7_library->abi << "\n"
+            << "size=" << info->armv7_library->size << "\n";
     } else {
         std::cout << "armv7_library=missing\n";
         return 3;
