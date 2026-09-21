@@ -900,7 +900,7 @@ void LibcBridge::handle(
 
         guest.set_register(
             0,
-            write_guest(r1, &ts, sizeof(ts)) ? 0 : -1
+            write_guest(*memory_, r1, &ts, sizeof(ts)) ? 0 : -1
         );
         return;
     }
@@ -925,7 +925,7 @@ void LibcBridge::handle(
 
         guest.set_register(
             0,
-            r0 == 0 || write_guest(r0, &tv, sizeof(tv))
+            r0 == 0 || write_guest(*memory_, r0, &tv, sizeof(tv))
                 ? 0
                 : static_cast<std::uint32_t>(-1)
         );
@@ -941,7 +941,7 @@ void LibcBridge::handle(
         if (r0 != 0) {
             const auto value =
                 static_cast<std::int32_t>(now);
-            if (!write_guest(r0, &value, sizeof(value))) {
+            if (!write_guest(*memory_, r0, &value, sizeof(value))) {
                 guest.set_register(0, static_cast<std::uint32_t>(-1));
                 return;
             }
