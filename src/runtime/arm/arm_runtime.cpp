@@ -373,11 +373,6 @@ bool ArmRuntime::bootstrap_jni() {
         );
     }
 
-    // MC3 1.1.7g may register its Java-facing native methods from
-    // JNI_OnLoad. Do not invent launcher exports here: the registration
-    // table observed above is the authoritative native interface for this
-    // build. The next bootstrap stage can invoke those registrations once
-    // their Java signatures and lifecycle roles are known.
     if (jni_->registered_natives().empty()) {
         log_warning("MC3 JNI_OnLoad registered no native methods.");
     } else {
@@ -388,6 +383,83 @@ bool ArmRuntime::bootstrap_jni() {
         );
     }
 
+    // The public MC3 Vita loader for the same 1.1.7g build calls these
+    // exported JNI entry points in this exact order after JNI_OnLoad. Keep
+    // this list data-driven and version-specific rather than guessing names
+    // from another MC3 release.
+    const auto call_required = [this](
+        const char* symbol,
+        std::initializer_list<std::uint32_t> arguments
+    ) {
+        const std::vector<std::uint32_t> args(arguments);
+        if (!call_symbol(symbol, args)) {
+            log_error(
+                "MC3 1.1.7g bootstrap export failed: " +
+                std::string(symbol)
+            );
+            return false;
+        }
+
+        log_info(
+            "MC3 1.1.7g bootstrap export passed: " +
+            std::string(symbol)
+        );
+        return true;
+    };
+
+    constexpr std::uint32_t dummy_class = 0x42424242u;
+    constexpr std::uint32_t dummy_object = 0x24242424u;
+
+    if (!call_required(
+            "Java_com_gameloft_glf_GL2JNILib_init",
+            {env, dummy_class}
+        )) {
+        return false;
+    }
+
+    if (!call_required(
+            "Java_com_gameloft_android_ANMP_GloftM3HM_iab_InAppBilling_nativeInit",
+            {env, dummy_class, dummy_object}
+        )) {
+        return false;
+    }
+
+    if (!call_required(
+            "Java_video_MyVideoView_Init",
+            {env}
+        )) {
+        return false;
+    }
+
+    if (!call_required(
+            "Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_Init",
+            {env, dummy_class}
+        )) {
+        return false;
+    }
+
+    if (!call_required(
+            "Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_nativeMC3Init",
+            {env, dummy_class}
+        )) {
+        return false;
+    }
+
+    if (!call_required(
+            "Java_com_gameloft_glf_GL2JNILib_getViewSettings",
+            {}
+        )) {
+        return false;
+    }
+
+    if (!call_required(
+            "Java_com_gameloft_glf_GL2JNILib_resize",
+            {env, dummy_class, 960u, 544u}
+        )) {
+        return false;
+    }
+
+    log_info("MC3 1.1.7g native launcher bootstrap completed.");
     return true;
 }
 
