@@ -16,7 +16,6 @@ struct NativeLibraryInfo {
 
 struct GameDataInfo {
     std::filesystem::path root;
-    std::filesystem::path obb_override;
     std::optional<std::filesystem::path> source_apk;
     std::optional<NativeLibraryInfo> armv7_library;
     std::filesystem::path obb_root;
