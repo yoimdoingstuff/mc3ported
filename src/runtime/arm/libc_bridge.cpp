@@ -905,6 +905,33 @@ void LibcBridge::handle(
         return;
     }
 
+    if (symbol == "gettimeofday") {
+        const now =
+            std::chrono::system_clock::now().time_since_epoch();
+        const seconds =
+            std::chrono::duration_cast<std::chrono::seconds>(now);
+        const micros =
+            std::chrono::duration_cast<std::chrono::microseconds>(
+                now - seconds
+            );
+
+        struct Timeval32 {
+            std::int32_t tv_sec;
+            std::int32_t tv_usec;
+        } tv{
+            .tv_sec = static_cast<std::int32_t>(seconds.count()),
+            .tv_usec = static_cast<std::int32_t>(micros.count())
+        };
+
+        guest.set_register(
+            0,
+            r0 == 0 || write_guest(r0, &tv, sizeof(tv))
+                ? 0
+                : static_cast<std::uint32_t>(-1)
+        );
+        return;
+    }
+
     if (symbol == "time") {
         const auto now =
             std::chrono::system_clock::to_time_t(
