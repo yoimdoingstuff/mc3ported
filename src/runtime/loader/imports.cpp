@@ -260,7 +260,7 @@ bool patch_arm32_import_relocations(
                     rel.offset + load_bias;
 
                 if (!write_u32(
-                        memory_,
+                        memory,
                         guest_target,
                         *target
                     )) {
