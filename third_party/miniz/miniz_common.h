@@ -16,6 +16,10 @@ typedef int64_t mz_int64;
 typedef uint64_t mz_uint64;
 typedef int mz_bool;
 
+typedef void *(*mz_alloc_func)(void *opaque, size_t items, size_t size);
+typedef void (*mz_free_func)(void *opaque, void *address);
+typedef void *(*mz_realloc_func)(void *opaque, void *address, size_t items, size_t size);
+
 #define MZ_FALSE (0)
 #define MZ_TRUE (1)
 
