@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <cstring>
 
 namespace mc3::arm {
 namespace {
@@ -348,7 +349,58 @@ void JniBridge::handle(
             guest.set_register(0, 1);
             return;
 
-        case kJniRegisterNatives:
+        case kJniRegisterNatives: {
+            // JNINativeMethod is three 32-bit guest pointers:
+            // name, signature, fnPtr.
+            const auto clazz = guest.register_value(1);
+            const auto methods = guest.register_value(2);
+            const auto count = guest.register_value(3);
+
+            if (count > 4096u ||
+                (count != 0 && !memory_->contains(
+                    methods,
+                    static_cast<std::size_t>(count) * 12u
+                ))) {
+                log_error("Guest RegisterNatives supplied an invalid method table.");
+                guest.set_register(0, static_cast<std::uint32_t>(-1));
+                return;
+            }
+
+            registered_natives_.clear();
+            registered_natives_.reserve(count);
+
+            for (std::uint32_t i = 0; i < count; ++i) {
+                const auto address = methods + i * 12u;
+                std::uint32_t values[3]{};
+
+                if (!memory_->contains(address, sizeof(values))) {
+                    log_error("Guest RegisterNatives method entry is outside guest memory.");
+                    registered_natives_.clear();
+                    guest.set_register(0, static_cast<std::uint32_t>(-1));
+                    return;
+                }
+
+                std::memcpy(values, memory_->data(address), sizeof(values));
+                registered_natives_.push_back(RegisteredNative{
+                    .clazz = clazz,
+                    .name = values[0],
+                    .signature = values[1],
+                    .function = values[2]
+                });
+
+                log_info(
+                    "MC3 RegisterNatives[" +
+                    std::to_string(i) +
+                    "]: name=0x" + std::to_string(values[0]) +
+                    " signature=0x" + std::to_string(values[1]) +
+                    " fn=0x" + std::to_string(values[2])
+                );
+            }
+
+            guest.set_register(0, 0);
+            return;
+        }
+
         case kJniUnregisterNatives:
         case kJniMonitorEnter:
         case kJniMonitorExit:
