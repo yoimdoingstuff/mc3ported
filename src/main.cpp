@@ -59,6 +59,11 @@ int main(int argc, char** argv) {
         return 6;
     }
 
+    if (!arm_runtime.bootstrap_jni()) {
+        mc3::log_error("MC3 JNI bootstrap failed.");
+        return 7;
+    }
+
     mc3::log_info(
         "Bootstrap finished. No Android installation was required."
     );
