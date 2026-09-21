@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <span>
 
 namespace mc3::arm {
 
@@ -35,6 +36,12 @@ public:
         std::uint64_t ticks
     );
 
+    bool call(
+        std::uint32_t entry,
+        bool thumb,
+        std::span<const std::uint32_t> arguments
+    );
+
     void set_svc_handler(SvcHandler handler);
 
     std::uint32_t register_value(std::size_t index) const;
@@ -43,6 +50,7 @@ public:
     std::uint32_t program_counter() const;
 
     bool faulted() const;
+    bool returned_from_call() const;
     void clear_fault();
 
 private:
