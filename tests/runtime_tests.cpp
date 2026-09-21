@@ -196,6 +196,24 @@ int main() {
     );
     assert(jni_guest.register_value(0) == 0x00010006u);
 
+    // Verify reference MC3 Android method IDs resolve to the documented
+    // FalsoJNI identifiers used by the 1.1.7g Vita loader.
+    const auto method_name = jni_memory.allocate_tail(32, 1);
+    const auto method_sig = jni_memory.allocate_tail(32, 1);
+    assert(method_name && method_sig);
+    const char method_text[] = "getPackage";
+    const char method_sig_text[] = "()Ljava/lang/String;";
+    assert(jni_memory.write(*method_name, method_text, sizeof(method_text)));
+    assert(jni_memory.write(*method_sig, method_sig_text, sizeof(method_sig_text)));
+
+    mc3::arm::GuestCpu method_id_cpu;
+    assert(method_id_cpu.initialize(&jni_memory));
+    method_id_cpu.set_register(1, 0x22000000u);
+    method_id_cpu.set_register(2, *method_name);
+    method_id_cpu.set_register(3, *method_sig);
+    jni_bridge.handle("jni.fn.33", method_id_cpu);
+    assert(method_id_cpu.register_value(0) == 103u);
+
     const auto native_name = jni_memory.allocate_tail(32, 1);
     const auto native_signature = jni_memory.allocate_tail(32, 1);
     const auto native_table = jni_memory.allocate_tail(12, 4);
