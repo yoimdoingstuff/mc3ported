@@ -908,9 +908,9 @@ void LibcBridge::handle(
     if (symbol == "gettimeofday") {
         const now =
             std::chrono::system_clock::now().time_since_epoch();
-        const seconds =
+        const auto seconds =
             std::chrono::duration_cast<std::chrono::seconds>(now);
-        const micros =
+        const auto micros =
             std::chrono::duration_cast<std::chrono::microseconds>(
                 now - seconds
             );
