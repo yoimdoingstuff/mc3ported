@@ -35,3 +35,24 @@ jobs:
 
       - name: Test
         run: ctest --test-dir build --output-on-failure
+
+  windows:
+    name: Windows portability build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure
+        run: >
+          cmake -S . -B build
+          -DMC3_ENABLE_TESTS=ON
+          -DMC3_ENABLE_TOOLS=ON
+          -DMC3_ENABLE_DYNARMIC=OFF
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
