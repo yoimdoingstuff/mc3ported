@@ -4,9 +4,17 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 
 namespace mc3::arm {
+
+class GuestCpu;
+
+using SvcHandler = std::function<void(
+    std::uint32_t immediate,
+    GuestCpu& guest
+)>;
 
 class GuestCpu {
 public:
@@ -26,6 +34,8 @@ public:
         bool thumb,
         std::uint64_t ticks
     );
+
+    void set_svc_handler(SvcHandler handler);
 
     std::uint32_t register_value(std::size_t index) const;
     void set_register(std::size_t index, std::uint32_t value);
