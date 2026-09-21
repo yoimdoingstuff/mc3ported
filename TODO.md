@@ -50,10 +50,10 @@ Legend:
 
 ## Phase 3: Dynamic loading / ABI
 
-- [ ] Implement dlopen compatibility.
-- [ ] Implement dlsym compatibility.
-- [ ] Implement dlclose compatibility.
-- [ ] Implement required dlerror behavior.
+- [~] Implement dlopen compatibility.
+- [~] Implement dlsym compatibility.
+- [~] Implement dlclose compatibility.
+- [~] Implement required dlerror behavior.
 - [~] Map required Bionic/libc symbols.
 - [ ] Map required pthread symbols.
 - [~] Map required time/clock functions.
@@ -87,10 +87,10 @@ Legend:
 
 ### AssetManager
 
-- [ ] Implement asset open/read/seek/close.
-- [ ] Implement asset size/remaining-length queries.
-- [ ] Implement required directory enumeration.
-- [ ] Add APK/OBB-backed asset access.
+- [~] Implement asset open/read/seek/close.
+- [~] Implement asset size/remaining-length queries.
+- [~] Implement required directory enumeration.
+- [~] Add APK/OBB-backed asset access.
 - [ ] Avoid mandatory full asset extraction.
 
 ### Android device/services
