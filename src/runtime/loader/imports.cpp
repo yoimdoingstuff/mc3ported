@@ -69,7 +69,7 @@ std::optional<std::uint32_t> allocate_guest_bytes(
     GuestMemory& memory,
     std::size_t size
 ) {
-    return memory.allocate_tail(size, GuestMemory::PageSize);
+    return memory.allocate_tail(size, 4);
 }
 
 } // namespace
