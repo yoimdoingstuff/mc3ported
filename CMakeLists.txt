@@ -11,11 +11,16 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 option(MC3_ENABLE_TESTS "Build MC3 Ported tests" ON)
 option(MC3_ENABLE_TOOLS "Build MC3 Ported developer tools" ON)
+option(MC3_ENABLE_DYNARMIC "Enable the ARMv7 JIT backend" ON)
 
 if(MSVC)
     add_compile_options(/W4 /permissive-)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+if(MC3_ENABLE_DYNARMIC)
+    include(cmake/Dependencies.cmake)
 endif()
 
 add_library(mc3_runtime
@@ -29,6 +34,11 @@ target_include_directories(mc3_runtime
     PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
+
+if(MC3_ENABLE_DYNARMIC)
+    target_compile_definitions(mc3_runtime PUBLIC MC3_HAVE_DYNARMIC=1)
+    target_link_libraries(mc3_runtime PUBLIC dynarmic)
+endif()
 
 add_executable(mc3
     src/main.cpp
