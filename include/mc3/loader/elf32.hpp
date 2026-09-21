@@ -26,6 +26,12 @@ struct ElfImport {
     std::string name;
 };
 
+struct ElfSymbolInfo {
+    std::uint32_t value = 0;
+    std::uint32_t size = 0;
+    std::uint16_t shndx = 0;
+};
+
 struct ElfDynamicInfo {
     bool present = false;
     std::uint32_t string_table_address = 0;
@@ -63,6 +69,12 @@ struct ElfImage {
 
 std::optional<ElfImage> parse_arm32_elf(const std::filesystem::path& path);
 std::optional<ElfDynamicInfo> inspect_dynamic(const ElfImage& image);
+
+std::optional<ElfSymbolInfo> find_dynamic_symbol(
+    const ElfImage& image,
+    const ElfDynamicInfo& dynamic,
+    const std::string& name
+);
 
 bool apply_arm32_relocations(
     const ElfImage& image,
