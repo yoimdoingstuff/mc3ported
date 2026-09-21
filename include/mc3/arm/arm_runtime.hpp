@@ -3,6 +3,7 @@
 #include "mc3/loader/elf32.hpp"
 #include "mc3/loader/imports.hpp"
 #include "mc3/loader/memory.hpp"
+#include "mc3/arm/jni_bridge.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -38,6 +39,8 @@ public:
 
     bool call_entrypoint(const std::string& symbol);
 
+    bool bootstrap_jni();
+
     const RuntimeInfo& info() const { return info_; }
     const loader::GuestMemory& memory() const { return memory_; }
     const loader::ElfImage* image() const { return image_ ? &*image_ : nullptr; }
@@ -51,6 +54,7 @@ private:
     std::uint32_t load_bias_ = 0;
     std::unique_ptr<GuestCpu> cpu_;
     std::unique_ptr<loader::GuestImportTable> imports_;
+    std::unique_ptr<JniBridge> jni_;
 };
 
 } // namespace mc3::arm
