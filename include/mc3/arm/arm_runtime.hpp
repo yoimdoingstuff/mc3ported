@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mc3/loader/elf32.hpp"
+#include "mc3/loader/imports.hpp"
 #include "mc3/loader/memory.hpp"
 
 #include <cstdint>
@@ -23,6 +24,8 @@ RuntimeInfo query_runtime();
 
 class ArmRuntime {
 public:
+    ~ArmRuntime();
+
     bool initialize();
     bool load_library(const std::filesystem::path& path);
     bool call_entrypoint(const std::string& symbol);
@@ -39,6 +42,7 @@ private:
     std::optional<loader::ElfImage> image_;
     std::uint32_t load_bias_ = 0;
     std::unique_ptr<GuestCpu> cpu_;
+    std::unique_ptr<loader::GuestImportTable> imports_;
 };
 
 } // namespace mc3::arm

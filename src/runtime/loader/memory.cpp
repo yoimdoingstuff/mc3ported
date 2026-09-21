@@ -38,6 +38,50 @@ void GuestMemory::clear() {
     size_ = 0;
 }
 
+std::optional<std::uint32_t> GuestMemory::allocate_tail(
+    std::size_t size,
+    std::uint32_t alignment
+) {
+    if (size == 0 || alignment == 0) {
+        return std::nullopt;
+    }
+
+    const auto current =
+        static_cast<std::uint64_t>(base_) + size_;
+
+    const auto aligned =
+        (current + alignment - 1) &
+        ~static_cast<std::uint64_t>(alignment - 1);
+
+    const auto end =
+        aligned + size;
+
+    if (aligned > std::numeric_limits<std::uint32_t>::max() ||
+        end > static_cast<std::uint64_t>(std::numeric_limits<std::uint32_t>::max()) + 1ull) {
+        return std::nullopt;
+    }
+
+    const auto new_size =
+        end - base_;
+
+    if (base_ == 0 && size_ == 0) {
+        return std::nullopt;
+    }
+
+    try {
+        bytes_.resize(static_cast<std::size_t>(new_size), 0);
+    } catch (...) {
+        log_error(
+            "Unable to grow guest memory by " +
+            std::to_string(size) + " bytes"
+        );
+        return std::nullopt;
+    }
+
+    size_ = static_cast<std::uint32_t>(new_size);
+    return static_cast<std::uint32_t>(aligned);
+}
+
 bool GuestMemory::contains(
     std::uint32_t address,
     std::size_t size

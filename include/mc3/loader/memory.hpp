@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace mc3::loader {
@@ -12,6 +13,11 @@ public:
 
     bool reserve(std::uint32_t base, std::uint32_t size);
     void clear();
+
+    std::optional<std::uint32_t> allocate_tail(
+        std::size_t size,
+        std::uint32_t alignment = 1
+    );
 
     bool contains(
         std::uint32_t address,

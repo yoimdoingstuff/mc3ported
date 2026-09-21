@@ -2,6 +2,7 @@
 #include "mc3/game_data.hpp"
 #include "mc3/arm/guest_cpu.hpp"
 #include "mc3/loader/elf32.hpp"
+#include "mc3/loader/imports.hpp"
 #include "mc3/loader/memory.hpp"
 
 #include <cassert>
@@ -134,6 +135,35 @@ int main() {
     cpu.set_register(1, 2);
     assert(cpu.run(0x12000000, true, 1));
     assert(cpu.register_value(0) == 8);
+
+    mc3::loader::GuestImportTable import_table(cpu_memory);
+    const auto stub = import_table.bind("puts");
+    assert(stub.has_value());
+    assert(import_table.size() == 1);
+    assert(import_table.symbol_for_slot(1).has_value());
+    assert(*import_table.symbol_for_slot(1) == "puts");
+
+    mc3::arm::GuestCpu import_cpu;
+    assert(import_cpu.initialize(&cpu_memory));
+    import_cpu.set_svc_handler(
+        [](std::uint32_t immediate, mc3::arm::GuestCpu& guest) {
+            assert(immediate == 0xFFu);
+            assert(guest.register_value(12) == 1);
+            guest.set_register(0, 0x12345678u);
+        }
+    );
+
+    // Return from the trampoline into an ARM "b ." loop.
+    const std::uint32_t loop = 0xEAFFFFFEu;
+    assert(cpu_memory.write(
+        0x12000000,
+        &loop,
+        sizeof(loop)
+    ));
+
+    import_cpu.set_register(14, 0x12000000u);
+    assert(import_cpu.run(*stub, false, 20));
+    assert(import_cpu.register_value(0) == 0x12345678u);
 
     std::filesystem::remove(elf_path, ec);
     std::filesystem::remove_all(temp, ec);

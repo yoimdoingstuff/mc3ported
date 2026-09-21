@@ -10,6 +10,8 @@
 
 namespace mc3::arm {
 
+ArmRuntime::~ArmRuntime() = default;
+
 namespace {
 
 bool guest_cpu_smoke_test() {
@@ -139,7 +141,9 @@ bool ArmRuntime::load_library(
         std::string(buffer)
     );
 
+    std::optional<loader::ElfDynamicInfo> dynamic_info;
     if (const auto dynamic = loader::inspect_dynamic(*parsed)) {
+        dynamic_info = dynamic;
         if (dynamic->present) {
             log_info(
                 "ARM ELF dynamic imports: " +
@@ -171,12 +175,83 @@ bool ArmRuntime::load_library(
         return false;
     }
 
+    if (!dynamic_info) {
+        return false;
+    }
+
+    const auto& dynamic_imports = dynamic_info->imports;
+
+    imports_ =
+        std::make_unique<loader::GuestImportTable>(memory_);
+
+    for (const auto& import : dynamic_imports) {
+        if (!imports_->bind(import.name)) {
+            log_error(
+                "Failed to create guest trampoline for import: " +
+                import.name
+            );
+            imports_.reset();
+            return false;
+        }
+    }
+
+    const auto resolver =
+        [this](std::string_view name)
+            -> std::optional<std::uint32_t> {
+            if (!imports_) {
+                return std::nullopt;
+            }
+            return imports_->bind(name);
+        };
+
+    if (!loader::patch_arm32_import_relocations(
+            *parsed,
+            *dynamic_info,
+            memory_,
+            load_bias_,
+            resolver
+        )) {
+        log_error("Failed to patch MC3 imported symbols.");
+        imports_.reset();
+        return false;
+    }
+
     cpu_ = std::make_unique<GuestCpu>();
     if (!cpu_->initialize(&memory_)) {
         log_error("Failed to bind guest CPU to MC3 memory.");
         cpu_.reset();
+        imports_.reset();
         return false;
     }
+
+    cpu_->set_svc_handler(
+        [this](std::uint32_t immediate, GuestCpu& guest) {
+            if (immediate != 0xFFu || !imports_) {
+                return;
+            }
+
+            const auto slot = guest.register_value(12);
+            const auto symbol = imports_->symbol_for_slot(slot);
+
+            if (!symbol) {
+                log_error(
+                    "Unknown guest import slot: " +
+                    std::to_string(slot)
+                );
+                guest.set_register(0, 0);
+                return;
+            }
+
+            log_debug(
+                "Guest import call: " +
+                *symbol
+            );
+
+            // Initial ABI bridge returns 0. Real host implementations
+            // will replace this per imported symbol.
+            guest.set_register(0, 0);
+        }
+    );
 
     return true;
 }
