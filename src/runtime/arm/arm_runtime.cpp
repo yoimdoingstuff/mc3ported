@@ -13,6 +13,24 @@ namespace mc3::arm {
 
 ArmRuntime::~ArmRuntime() = default;
 
+bool ArmRuntime::configure_assets(
+    const std::filesystem::path& filesystem_assets_root,
+    const std::filesystem::path& apk_path,
+    const std::filesystem::path& obb_root
+) {
+    if (!assets_.configure(
+            memory_,
+            filesystem_assets_root,
+            apk_path,
+            obb_root
+        )) {
+        log_error("Failed to configure Android AssetManager bridge.");
+        return false;
+    }
+
+    return true;
+}
+
 bool ArmRuntime::configure_filesystem(
     const std::filesystem::path& obb_root,
     const std::filesystem::path& app_root,
@@ -292,6 +310,11 @@ bool ArmRuntime::load_library(
 
             if (dlfcn_.handles(*symbol)) {
                 dlfcn_.handle(*symbol, guest);
+                return;
+            }
+
+            if (assets_.handles(*symbol)) {
+                assets_.handle(*symbol, guest);
                 return;
             }
 
