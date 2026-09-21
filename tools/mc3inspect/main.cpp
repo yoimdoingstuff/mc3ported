@@ -2,6 +2,7 @@
 #include "mc3/game_data.hpp"
 #include "mc3/loader/elf32.hpp"
 
+#include <filesystem>
 #include <iomanip>
 #include <iostream>
 #include <string>
@@ -10,7 +11,7 @@ namespace {
 
 void usage() {
     std::cout
-        << "Usage: mc3inspect <game-data-directory>\n"
+        << "Usage: mc3inspect <game-data-directory-or-apk>\n"
         << "       mc3inspect --elf <libModernCombat3.so>\n"
         << "       mc3inspect --runtime\n";
 }
@@ -80,9 +81,7 @@ int main(int argc, char** argv) {
 
     if (argc == 3 && std::string(argv[1]) == "--elf") {
         const auto image = mc3::loader::parse_arm32_elf(argv[2]);
-        if (!image) {
-            return 1;
-        }
+        if (!image) return 1;
         print_elf(*image);
         return 0;
     }
@@ -92,25 +91,32 @@ int main(int argc, char** argv) {
         return 2;
     }
 
-    const auto info = mc3::inspect_game_data(argv[1]);
-    if (!info) {
-        return 1;
-    }
+    const auto input = std::filesystem::path(argv[1]);
+    const auto cache = std::filesystem::temp_directory_path() / "mc3ported-inspect";
+    const auto info = mc3::inspect_game_data(input, cache);
+    if (!info) return 1;
 
     std::cout
         << "root=" << info->root.string() << "\n"
+        << "input_apk=" << (info->input_is_apk ? "yes" : "no") << "\n"
         << "apk_extract=" << (info->looks_like_apk_extract ? "yes" : "no") << "\n"
-        << "obb_root=" << (info->looks_like_obb_root ? "yes" : "no") << "\n";
+        << "obb_root="
+        << (info->looks_like_obb_root ? info->obb_root.string() : "missing")
+        << "\n";
 
-    if (info->armv7_library) {
-        std::cout
-            << "armv7_library=" << info->armv7_library->path.string() << "\n"
-            << "abi=" << info->armv7_library->abi << "\n"
-            << "size=" << info->armv7_library->size << "\n";
-    } else {
+    if (info->source_apk) {
+        std::cout << "source_apk=" << info->source_apk->string() << "\n";
+    }
+
+    if (!info->armv7_library) {
         std::cout << "armv7_library=missing\n";
         return 3;
     }
+
+    std::cout
+        << "armv7_library=" << info->armv7_library->path.string() << "\n"
+        << "abi=" << info->armv7_library->abi << "\n"
+        << "size=" << info->armv7_library->size << "\n";
 
     return 0;
 }
