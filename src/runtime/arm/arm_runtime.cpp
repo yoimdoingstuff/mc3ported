@@ -256,19 +256,51 @@ bool ArmRuntime::load_library(
     return true;
 }
 
-bool ArmRuntime::call_entrypoint(
-    const std::string& symbol
+bool ArmRuntime::call_symbol(
+    const std::string& symbol,
+    std::span<const std::uint32_t> arguments
 ) {
     if (!image_ || loaded_library_.empty() || !cpu_) {
         log_error("No ARM library is loaded.");
         return false;
     }
 
+    const auto dynamic = loader::inspect_dynamic(*image_);
+    if (!dynamic || !dynamic->present) {
+        log_error("Loaded ARM library has no dynamic symbol table.");
+        return false;
+    }
+
+    const auto guest_symbol =
+        loader::find_dynamic_symbol(*image_, *dynamic, symbol);
+
+    if (!guest_symbol) {
+        log_error("ARM export was not found: " + symbol);
+        return false;
+    }
+
+    const auto address = guest_symbol->value + load_bias_;
+    const bool thumb = (address & 1u) != 0;
+
     log_info(
-        "Entrypoint execution remains pending for symbol: " +
-        symbol
+        "Calling ARM symbol " +
+        symbol +
+        " at guest address 0x" +
+        std::to_string(address) +
+        (thumb ? " (Thumb)" : " (ARM)")
     );
-    return false;
+
+    return cpu_->call(
+        address & ~1u,
+        thumb,
+        arguments
+    );
+}
+
+bool ArmRuntime::call_entrypoint(
+    const std::string& symbol
+) {
+    return call_symbol(symbol);
 }
 
 } // namespace mc3::arm
