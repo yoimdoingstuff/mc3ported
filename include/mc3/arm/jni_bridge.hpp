@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <memory>
 #include <string_view>
+#include <vector>
 
 namespace mc3::arm {
 
@@ -13,6 +14,12 @@ class GuestCpu;
 
 class JniBridge {
 public:
+    struct RegisteredNative {
+        std::uint32_t clazz = 0;
+        std::uint32_t name = 0;
+        std::uint32_t signature = 0;
+        std::uint32_t function = 0;
+    };
     JniBridge() = default;
     ~JniBridge() = default;
 
@@ -33,6 +40,7 @@ public:
 
     std::uint32_t vm_pointer() const { return vm_pointer_; }
     std::uint32_t env_pointer() const { return env_pointer_; }
+    const std::vector<RegisteredNative>& registered_natives() const { return registered_natives_; }
 
 private:
     std::uint32_t allocate_function_table(
@@ -71,6 +79,7 @@ private:
     std::uint32_t env_table_ = 0;
     loader::GuestMemory* memory_ = nullptr;
     loader::GuestImportTable* imports_ = nullptr;
+    std::vector<RegisteredNative> registered_natives_;
 };
 
 } // namespace mc3::arm
