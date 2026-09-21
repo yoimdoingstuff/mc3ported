@@ -6,7 +6,7 @@
 #include <cstdint>
 #include <optional>
 #include <string>
-#include <cstring>
+#include <cstring>\n#include <algorithm>
 
 namespace mc3::arm {
 namespace {
@@ -220,6 +220,36 @@ std::uint32_t JniBridge::read_guest_string_length(
     return maximum;
 }
 
+std::string JniBridge::read_guest_string(
+    std::uint32_t address,
+    std::uint32_t maximum
+) const {
+    if (!memory_ || address == 0 || maximum == 0) {
+        return {};
+    }
+
+    std::string result;
+    result.reserve(maximum);
+
+    for (std::uint32_t i = 0; i < maximum; ++i) {
+        const auto* byte = memory_->data(address + i);
+        if (!byte || *byte == 0) {
+            break;
+        }
+
+        // JNI strings used for names/signatures are ASCII-compatible.
+        // Keep logging bounded and replace embedded control bytes.
+        const char character = static_cast<char>(*byte);
+        result.push_back(
+            character >= 0x20 && character <= 0x7e
+                ? character
+                : '?'
+        );
+    }
+
+    return result;
+}
+
 bool JniBridge::write_guest_u32(
     GuestCpu& guest,
     std::uint32_t address,
@@ -393,11 +423,16 @@ void JniBridge::handle(
                     .function = values[2]
                 });
 
+                const auto name = read_guest_string(values[0], 1024);
+                const auto signature = read_guest_string(values[1], 1024);
+
                 log_info(
                     "MC3 RegisterNatives[" +
                     std::to_string(i) +
-                    "]: name=0x" + std::to_string(values[0]) +
-                    " signature=0x" + std::to_string(values[1]) +
+                    "]: clazz=0x" + std::to_string(clazz) +
+                    " name=" + (name.empty() ? "<invalid>" : name) +
+                    " signature=" +
+                    (signature.empty() ? "<invalid>" : signature) +
                     " fn=0x" + std::to_string(values[2])
                 );
             }
@@ -406,7 +441,22 @@ void JniBridge::handle(
             return;
         }
 
-        case kJniUnregisterNatives:
+        case kJniUnregisterNatives: {
+            const auto clazz = guest.register_value(1);
+            registered_natives_.erase(
+                std::remove_if(
+                    registered_natives_.begin(),
+                    registered_natives_.end(),
+                    [clazz](const RegisteredNative& native) {
+                        return native.clazz == clazz;
+                    }
+                ),
+                registered_natives_.end()
+            );
+            guest.set_register(0, 0);
+            return;
+        }
+
         case kJniMonitorEnter:
         case kJniMonitorExit:
             guest.set_register(0, 0);
