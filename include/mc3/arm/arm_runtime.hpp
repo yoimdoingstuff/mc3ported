@@ -5,6 +5,7 @@
 #include "mc3/loader/memory.hpp"
 #include "mc3/arm/jni_bridge.hpp"
 #include "mc3/arm/libc_bridge.hpp"
+#include "mc3/arm/dlfcn_bridge.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -66,6 +67,7 @@ private:
     std::unique_ptr<JniBridge> jni_;
     AndroidFsBridge filesystem_;
     LibcBridge libc_;
+    DlfcnBridge dlfcn_;
 };
 
 } // namespace mc3::arm
