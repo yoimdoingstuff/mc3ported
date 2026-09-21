@@ -4,6 +4,7 @@
 #include "mc3/loader/imports.hpp"
 #include "mc3/loader/memory.hpp"
 #include "mc3/arm/jni_bridge.hpp"
+#include "mc3/arm/libc_bridge.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -30,6 +31,14 @@ public:
     ~ArmRuntime();
 
     bool initialize();
+
+    bool configure_filesystem(
+        const std::filesystem::path& obb_root,
+        const std::filesystem::path& app_root,
+        const std::filesystem::path& external_root,
+        const std::filesystem::path& data_root
+    );
+
     bool load_library(const std::filesystem::path& path);
 
     bool call_symbol(
@@ -55,6 +64,8 @@ private:
     std::unique_ptr<GuestCpu> cpu_;
     std::unique_ptr<loader::GuestImportTable> imports_;
     std::unique_ptr<JniBridge> jni_;
+    AndroidFsBridge filesystem_;
+    LibcBridge libc_;
 };
 
 } // namespace mc3::arm
