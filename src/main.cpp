@@ -46,6 +46,21 @@ int main(int argc, char** argv) {
     }
 
     mc3::arm::ArmRuntime arm_runtime;
+
+    const auto obb_root =
+        data->looks_like_obb_root
+            ? data->obb_root
+            : std::filesystem::path{};
+
+    if (!arm_runtime.configure_filesystem(
+            obb_root,
+            config->save_root / "appdata",
+            config->save_root / "external",
+            config->runtime_root / "data"
+        )) {
+        mc3::log_error("Android filesystem configuration failed.");
+        return 5;
+    }
     if (!arm_runtime.initialize()) {
         mc3::log_error("ARM runtime initialization failed.");
         return 5;
