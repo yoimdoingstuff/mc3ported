@@ -510,6 +510,47 @@ bool ArmRuntime::call_entrypoint(
     return call_symbol(symbol);
 }
 
+bool ArmRuntime::step_game() {
+    // The public 1.1.7g Vita loader advances MC3 by calling this exact
+    // exported JNI entry point once per rendered frame.
+    return call_symbol("Java_com_gameloft_glf_GL2JNILib_step");
+}
+
+bool ArmRuntime::gameplay_active() const {
+    if (!cpu_ || !image_ || loaded_library_.empty()) {
+        return false;
+    }
+
+    const auto dynamic = loader::inspect_dynamic(*image_);
+    if (!dynamic || !dynamic->present) {
+        return false;
+    }
+
+    const auto guest_symbol =
+        loader::find_dynamic_symbol(
+            *image_,
+            *dynamic,
+            "Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_isGamePlay"
+        );
+
+    if (!guest_symbol) {
+        return false;
+    }
+
+    const auto address = guest_symbol->value + load_bias_;
+    const bool thumb = (address & 1u) != 0;
+
+    // This query has no Java arguments. Keep it separate from step_game()
+    // so callers can decide whether to expose gameplay-only PC controls.
+    auto* mutable_cpu = cpu_.get();
+    if (!mutable_cpu->call(address & ~1u, thumb, {})) {
+        return false;
+    }
+
+    return mutable_cpu->register_value(0) != 0;
+}
+
+
 bool ArmRuntime::call_registered_native(
     std::string_view name,
     std::string_view signature,
