@@ -196,6 +196,37 @@ int main() {
     );
     assert(jni_guest.register_value(0) == 0x00010006u);
 
+    const auto native_name = jni_memory.allocate_tail(32, 1);
+    const auto native_signature = jni_memory.allocate_tail(32, 1);
+    const auto native_table = jni_memory.allocate_tail(12, 4);
+    assert(native_name && native_signature && native_table);
+
+    const char native_name_text[] = "mc3Probe";
+    const char native_signature_text[] = "(I)I";
+    assert(jni_memory.write(*native_name, native_name_text, sizeof(native_name_text)));
+    assert(jni_memory.write(*native_signature, native_signature_text, sizeof(native_signature_text)));
+
+    const std::uint32_t native_entry[3] = {
+        *native_name,
+        *native_signature,
+        0x12345679u
+    };
+    assert(jni_memory.write(*native_table, native_entry, sizeof(native_entry)));
+
+    mc3::arm::GuestCpu register_cpu;
+    assert(register_cpu.initialize(&jni_memory));
+    register_cpu.set_register(1, 0x22000000u);
+    register_cpu.set_register(2, *native_table);
+    register_cpu.set_register(3, 1);
+    jni_bridge.handle("jni.fn.215", register_cpu);
+    assert(register_cpu.register_value(0) == 0);
+
+    const auto registered = jni_bridge.find_registered_native("mc3Probe", "(I)I");
+    assert(registered.has_value());
+    assert(registered->clazz == 0x22000000u);
+    assert(registered->function == 0x12345679u);
+    assert(!jni_bridge.find_registered_native("missing", "(I)I").has_value());
+
     mc3::arm::GuestCpu jni_vm_cpu;
     assert(jni_vm_cpu.initialize(&jni_memory));
     const auto env_out = jni_memory.allocate_tail(4, 4);
