@@ -13,6 +13,25 @@ namespace mc3::arm {
 
 ArmRuntime::~ArmRuntime() = default;
 
+bool ArmRuntime::configure_filesystem(
+    const std::filesystem::path& obb_root,
+    const std::filesystem::path& app_root,
+    const std::filesystem::path& external_root,
+    const std::filesystem::path& data_root
+) {
+    if (!filesystem_.configure(
+            obb_root,
+            app_root,
+            external_root,
+            data_root
+        )) {
+        log_error("Failed to configure Android filesystem paths.");
+        return false;
+    }
+
+    return true;
+}
+
 namespace {
 
 bool guest_cpu_smoke_test() {
@@ -217,6 +236,12 @@ bool ArmRuntime::load_library(
         return false;
     }
 
+    if (!libc_.configure(memory_, filesystem_)) {
+        log_error("Failed to initialize the libc compatibility bridge.");
+        imports_.reset();
+        return false;
+    }
+
     cpu_ = std::make_unique<GuestCpu>();
     if (!cpu_->initialize(&memory_)) {
         log_error("Failed to bind guest CPU to MC3 memory.");
@@ -252,6 +277,11 @@ bool ArmRuntime::load_library(
 
             if (jni_ && jni_->handles(*symbol)) {
                 jni_->handle(*symbol, guest);
+                return;
+            }
+
+            if (libc_.handles(*symbol)) {
+                libc_.handle(*symbol, guest);
                 return;
             }
 
