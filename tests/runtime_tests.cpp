@@ -1,5 +1,6 @@
 #include "mc3/arm/arm_runtime.hpp"
 #include "mc3/game_data.hpp"
+#include "mc3/arm/guest_cpu.hpp"
 #include "mc3/loader/elf32.hpp"
 #include "mc3/loader/memory.hpp"
 
@@ -114,6 +115,25 @@ int main() {
 
     const auto runtime = mc3::arm::query_runtime();
     assert(!runtime.backend_name.empty());
+
+    mc3::loader::GuestMemory cpu_memory;
+    assert(cpu_memory.reserve(0x12000000, 0x1000));
+
+    const std::uint8_t thumb_code[] = {
+        0x88, 0x00,
+        0xfe, 0xe7
+    };
+    assert(cpu_memory.write(
+        0x12000000,
+        thumb_code,
+        sizeof(thumb_code)
+    ));
+
+    mc3::arm::GuestCpu cpu;
+    assert(cpu.initialize(&cpu_memory));
+    cpu.set_register(1, 2);
+    assert(cpu.run(0x12000000, true, 1));
+    assert(cpu.register_value(0) == 8);
 
     std::filesystem::remove(elf_path, ec);
     std::filesystem::remove_all(temp, ec);

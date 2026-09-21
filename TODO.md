@@ -36,7 +36,11 @@ Legend:
 - [x] Select Dynarmic A32 as the initial x86-64 ARMv7 JIT backend.
 - [x] Integrate Dynarmic into the build.
 - [x] Add an ARMv7 execution smoke test.
-- [ ] Implement ARM ELF loading.
+- [x] Implement 32-bit ARM ELF parsing and PT_LOAD mapping.
+- [x] Inspect PT_DYNAMIC dependencies, symbols, and ARM relocations.
+- [x] Apply R_ARM_RELATIVE relocations.
+- [x] Add mc3inspect dynamic-import reporting.
+- [ ] Implement ARM ELF loading into the live Dynarmic guest CPU.
 - [ ] Implement guest memory mappings.
 - [ ] Implement relocation/symbol handling.
 - [ ] Add diagnostics for unresolved imports.
@@ -56,6 +60,7 @@ Legend:
 - [ ] Map required memory APIs.
 - [ ] Add missing-symbol logging and callsite diagnostics.
 - [ ] Add ARM EABI helper compatibility.
+- [ ] Add host-address/trampoline support for guest-callable imported functions.
 
 ## Phase 4: Minimal Android environment
 
@@ -259,6 +264,6 @@ Completed:
 
 Next milestone:
 
-**M2: custom ARM ELF loader + guest memory map**
+**M3: imported-symbol ABI + guest CPU execution**
 
-The goal of M2 is to load the actual user-supplied libModernCombat3.so into a guest address space and begin resolving its dynamic dependencies without Android installed.
+The goal of M3 is to take the loaded MC3 image, resolve its undefined symbols against the minimal compatibility runtime, provide guest-callable trampolines where required, and enter controlled ARM code through Dynarmic.

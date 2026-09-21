@@ -149,7 +149,16 @@ Responsibilities:
 
 The loader should produce useful logs for missing libraries and symbols.
 
-## 7. Minimal JNI
+## 7. Imported-symbol ABI
+
+The dynamic loader needs two different kinds of resolution:
+
+1. guest symbols defined inside MC3 itself, which resolve to the loaded guest image;
+2. undefined symbols imported from Android/Bionic, EGL/GLES, sockets, libc, compiler runtime, AssetManager, and similar APIs.
+
+Imported host functions cannot simply write a 64-bit Windows function pointer into a 32-bit ARM relocation. The project therefore needs a guest-callable trampoline/bridge layer. That layer will own the ABI conversion between ARM registers/stack and native host calls.
+
+## 8. Minimal JNI
 
 MC3 may expect Java/JNI services even though the game logic is primarily native.
 
@@ -182,7 +191,7 @@ known compatibility shim? -- no --> log + fail clearly
 native host implementation
 ```
 
-## 8. Android filesystem
+## 9. Android filesystem
 
 Present MC3 with Android-like logical paths while storing data in normal desktop directories.
 
@@ -199,7 +208,7 @@ save/config data                     saves/
 
 The mapping must be configurable and must not write to arbitrary system locations.
 
-## 9. AssetManager
+## 10. AssetManager
 
 The compatibility layer should expose Android-style asset access over extracted or mounted game data.
 
@@ -222,7 +231,7 @@ The runtime may either:
 
 The extracted cache must be optional because storage is a project constraint.
 
-## 10. Graphics
+## 11. Graphics
 
 MC3 expects mobile OpenGL ES/EGL behavior.
 
@@ -253,7 +262,7 @@ Initial priority:
 
 The backend should support high-resolution and widescreen output without changing the game's logical coordinate assumptions until required.
 
-## 11. Audio
+## 12. Audio
 
 Provide the Android-era audio behavior expected by the game while using a desktop audio backend.
 
@@ -268,7 +277,7 @@ Responsibilities:
 
 SDL3 can provide the host-side audio device abstraction if it proves adequate.
 
-## 12. PC input model
+## 13. PC input model
 
 Input is deliberately different from the mobile UI.
 
@@ -313,7 +322,7 @@ The runtime should provide:
 
 Do not simply stretch a fixed phone framebuffer if the renderer can operate at a real desktop resolution.
 
-## 14. Networking and multiplayer
+## 15. Networking and multiplayer
 
 Networking is split into three layers:
 
@@ -357,7 +366,7 @@ Potential server components:
 
 Do not claim compatibility until captured/reference traffic and multiple clients have been tested.
 
-## 15. Diagnostics
+## 16. Diagnostics
 
 Every subsystem should support structured logging.
 
@@ -385,7 +394,7 @@ A missing compatibility function should log:
 
 This is essential because the project is intentionally implementing a subset rather than all of Android.
 
-## 16. Testing architecture
+## 17. Testing architecture
 
 ### Unit tests
 
@@ -429,7 +438,7 @@ Milestones:
 10. multiplayer session works;
 11. Android/iOS interop works where protocol-compatible.
 
-## 17. Distribution model
+## 18. Distribution model
 
 The project should distribute:
 
@@ -443,7 +452,7 @@ The project should not automatically distribute the original proprietary MC3 APK
 
 The launcher should accept a user-provided game package/data directory.
 
-## 18. Future portability
+## 19. Future portability
 
 The compatibility interfaces should be designed so that the same core runtime can eventually target:
 

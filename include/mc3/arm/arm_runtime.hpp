@@ -5,10 +5,13 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <memory>
 #include <optional>
 #include <string>
 
 namespace mc3::arm {
+
+class GuestCpu;
 
 struct RuntimeInfo {
     std::string backend_name;
@@ -35,6 +38,7 @@ private:
     loader::GuestMemory memory_;
     std::optional<loader::ElfImage> image_;
     std::uint32_t load_bias_ = 0;
+    std::unique_ptr<GuestCpu> cpu_;
 };
 
 } // namespace mc3::arm
