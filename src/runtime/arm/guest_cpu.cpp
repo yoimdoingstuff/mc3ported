@@ -199,6 +199,7 @@ struct GuestCpu::Impl {
     explicit Impl(loader::GuestMemory* memory, GuestCpu* owner)
         : callbacks(memory) {
         callbacks.owner = owner;
+        callbacks.memory_ = memory;
 
         Dynarmic::A32::UserConfig config{};
         config.callbacks = &callbacks;
@@ -210,6 +211,7 @@ struct GuestCpu::Impl {
 
     std::unique_ptr<Dynarmic::A32::Jit> cpu;
     Callbacks callbacks;
+    std::uint32_t stack_top = 0;
 };
 
 GuestCpu::GuestCpu()
@@ -226,6 +228,40 @@ bool GuestCpu::initialize(loader::GuestMemory* memory) {
 
     try {
         impl_ = std::make_unique<Impl>(memory, this);
+
+        constexpr std::size_t kGuestStackSize = 8u * 1024u * 1024u;
+        const auto stack =
+            memory->allocate_tail(
+                kGuestStackSize,
+                loader::GuestMemory::PageSize
+            );
+
+        if (!stack) {
+            log_error("Failed to allocate ARM guest stack.");
+            impl_.reset();
+            return false;
+        }
+
+        const auto raw_top =
+            static_cast<std::uint64_t>(*stack) + kGuestStackSize;
+        if (raw_top > 0xFFFFFFFFull) {
+            log_error("ARM guest stack address overflow.");
+            impl_.reset();
+            return false;
+        }
+
+        impl_->stack_top =
+            static_cast<std::uint32_t>(raw_top) & ~0x7u;
+
+        if (!memory->contains(
+                impl_->stack_top - 0x100,
+                0x100
+            )) {
+            log_error("ARM guest stack is outside guest memory.");
+            impl_.reset();
+            return false;
+        }
+
         return true;
     } catch (const std::exception& error) {
         log_error(
@@ -249,6 +285,17 @@ bool GuestCpu::run(
     impl_->callbacks.faulted = false;
     impl_->callbacks.returned_from_call = false;
     impl_->callbacks.ticks_remaining = ticks;
+
+    for (std::size_t i = 0; i < 13; ++i) {
+        impl_->cpu->Regs()[i] = 0;
+    }
+
+    impl_->cpu->Regs()[13] =
+        impl_->stack_top - 0x100;
+
+    impl_->cpu->Regs()[14] =
+        impl_->stack_top |
+        (thumb ? 1u : 0u);
 
     impl_->cpu->Regs()[15] = entry;
     impl_->cpu->SetCpsr(
@@ -303,15 +350,60 @@ bool GuestCpu::call(
 
     impl_->callbacks.faulted = false;
     impl_->callbacks.returned_from_call = false;
-    impl_->callbacks.ticks_remaining = 1000000;
+    constexpr std::uint64_t kCallTickBudget = 10000000;
+    impl_->callbacks.ticks_remaining = kCallTickBudget;
+
+    for (std::size_t i = 0; i < 13; ++i) {
+        impl_->cpu->Regs()[i] = 0;
+    }
+
+    const std::size_t stack_argument_count =
+        arguments.size() > 4 ? arguments.size() - 4 : 0;
+    const std::size_t stack_argument_bytes =
+        stack_argument_count * sizeof(std::uint32_t);
+
+    if (stack_argument_bytes > 0x1000 ||
+        impl_->stack_top < 0x100 + stack_argument_bytes) {
+        log_error("ARM guest call has too many stack arguments.");
+        return false;
+    }
+
+    const auto stack_pointer =
+        impl_->stack_top -
+        0x100 -
+        static_cast<std::uint32_t>(stack_argument_bytes);
+
+    if (!impl_->callbacks.memory_->contains(
+            stack_pointer,
+            stack_argument_bytes
+        )) {
+        log_error("ARM guest call stack arguments are outside guest memory.");
+        return false;
+    }
+
+    for (std::size_t i = 0; i < stack_argument_count; ++i) {
+        const auto value = arguments[i + 4];
+        if (!impl_->callbacks.memory_->write(
+                stack_pointer +
+                    static_cast<std::uint32_t>(
+                        i * sizeof(std::uint32_t)
+                    ),
+                &value,
+                sizeof(value)
+            )) {
+            log_error("Failed to write ARM guest call stack argument.");
+            return false;
+        }
+    }
+
+    impl_->cpu->Regs()[13] = stack_pointer;
+    impl_->cpu->Regs()[14] =
+        *return_stub |
+        (thumb ? 1u : 0u);
 
     for (std::size_t i = 0; i < arguments.size() && i < 4; ++i) {
         impl_->cpu->Regs()[i] = arguments[i];
     }
-
-    impl_->cpu->Regs()[14] =
-        *return_stub |
-        (thumb ? 1u : 0u);
 
     impl_->cpu->Regs()[15] = entry;
     impl_->cpu->SetCpsr(
