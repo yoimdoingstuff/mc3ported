@@ -366,8 +366,14 @@ void JniBridge::handle(
                 return;
             }
 
-            registered_natives_.clear();
-            registered_natives_.reserve(count);
+            // Multiple classes may register native tables during startup.
+            // Keep earlier registrations instead of discarding them on each call.
+            if (registered_natives_.size() + count > 16384u) {
+                log_error("Guest RegisterNatives exceeded the native registration limit.");
+                guest.set_register(0, static_cast<std::uint32_t>(-1));
+                return;
+            }
+            registered_natives_.reserve(registered_natives_.size() + count);
 
             for (std::uint32_t i = 0; i < count; ++i) {
                 const auto address = methods + i * 12u;
@@ -375,7 +381,6 @@ void JniBridge::handle(
 
                 if (!memory_->contains(address, sizeof(values))) {
                     log_error("Guest RegisterNatives method entry is outside guest memory.");
-                    registered_natives_.clear();
                     guest.set_register(0, static_cast<std::uint32_t>(-1));
                     return;
                 }
