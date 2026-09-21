@@ -200,10 +200,10 @@ extern "C"
 
         tinfl_decompressor inflator;
 
-#ifdef MINIZ_DISABLE_ZIP_READER_CRC32_CHECKS
-        mz_uint padding;
+#ifndef MINIZ_DISABLE_ZIP_READER_CRC32_CHECKS
+        mz_uint file_crc32;
 #else
-    mz_uint file_crc32;
+        mz_uint padding;
 #endif
 
     } mz_zip_reader_extract_iter_state;
