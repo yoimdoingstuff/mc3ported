@@ -22,7 +22,7 @@ Legend:
 - [ ] Document the supported MC3 Android package/version.
 - [x] Add game-data inspection tool.
 - [x] Add APK/ZIP asset enumeration.
-- [ ] Add OBB discovery and validation.
+- [x] Add OBB discovery and validation.
 - [x] Add configurable game-data directory.
 - [x] Validate ARM ABI and native library presence.
 - [x] Detect libModernCombat3.so automatically.
@@ -54,7 +54,7 @@ Legend:
 - [ ] Implement dlsym compatibility.
 - [ ] Implement dlclose compatibility.
 - [ ] Implement required dlerror behavior.
-- [ ] Map required Bionic/libc symbols.
+- [~] Map required Bionic/libc symbols.
 - [ ] Map required pthread symbols.
 - [ ] Map required time/clock functions.
 - [ ] Map required memory APIs.
@@ -67,13 +67,13 @@ Legend:
 ### JNI
 
 - [ ] Add minimal JNI runtime.
-- [ ] Implement class lookup.
-- [ ] Implement method lookup.
-- [ ] Implement field lookup.
-- [ ] Implement strings and primitive JNI values.
+- [~] Implement class lookup.
+- [~] Implement method lookup.
+- [~] Implement field lookup.
+- [~] Implement strings and primitive JNI values.
 - [ ] Implement arrays.
 - [ ] Implement object/reference handling.
-- [ ] Add demand-driven JNI stubs from runtime logs.
+- [~] Add demand-driven JNI stubs from runtime logs.
 - [ ] Implement required MC3 callbacks.
 
 ### Android filesystem
