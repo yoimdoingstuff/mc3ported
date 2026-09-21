@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace mc3::arm {
@@ -435,6 +436,68 @@ bool ArmRuntime::call_entrypoint(
     const std::string& symbol
 ) {
     return call_symbol(symbol);
+}
+
+bool ArmRuntime::call_registered_native(
+    std::string_view name,
+    std::string_view signature,
+    std::span<const std::uint32_t> arguments
+) {
+    if (!jni_ || !cpu_) {
+        log_error("Registered JNI native call requested before JNI setup.");
+        return false;
+    }
+
+    const auto native = jni_->find_registered_native(name, signature);
+    if (!native) {
+        log_error(
+            "Registered JNI native was not found: " +
+            std::string(name) +
+            " " +
+            std::string(signature)
+        );
+        return false;
+    }
+
+    // JNINativeMethod function pointers are already guest addresses.
+    // The native ABI receives JNIEnv* and the registered class/object first,
+    // followed by the Java arguments.
+    std::vector<std::uint32_t> call_arguments;
+    call_arguments.reserve(arguments.size() + 2);
+    call_arguments.push_back(jni_->env_pointer());
+    call_arguments.push_back(native->clazz);
+    call_arguments.insert(
+        call_arguments.end(),
+        arguments.begin(),
+        arguments.end()
+    );
+
+    const auto address = native->function;
+    const bool thumb = (address & 1u) != 0;
+
+    char buffer[16]{};
+    std::snprintf(
+        buffer,
+        sizeof(buffer),
+        "%08x",
+        address
+    );
+
+    log_info(
+        "Calling registered MC3 JNI native " +
+        std::string(name) +
+        " " +
+        std::string(signature) +
+        " at guest address 0x" +
+        std::string(buffer) +
+        (thumb ? " (Thumb)" : " (ARM)")
+    );
+
+    return cpu_->call(
+        address & ~1u,
+        thumb,
+        call_arguments
+    );
 }
 
 } // namespace mc3::arm
