@@ -1,131 +1,72 @@
 # MC3 Ported
 
-A native-PC compatibility project for Modern Combat 3: Fallen Nation.
+A native-PC compatibility runtime for Modern Combat 3: Fallen Nation.
 
-The goal is to run the original Android ARMv7 game through a small purpose-built compatibility runtime instead of installing a complete Android environment.
+The project follows the broad approach of the public MC3 Vita loader: host the original Android ARMv7 native game code in a small targeted compatibility environment instead of installing a complete Android system.
 
 ## Current status
 
-The repository is now in the M1 bootstrap stage.
+The repository currently contains the M1 runtime foundation:
 
-Implemented:
+- ARMv7 ELF parsing/loading;
+- guest memory management;
+- Dynarmic A32 CPU backend;
+- import trampoline scaffolding;
+- minimal APK inspection/materialization;
+- extracted-directory game-data support;
+- runtime diagnostics;
+- automated Linux CI.
 
-- project architecture and agent guidance;
-- CMake build skeleton;
-- runtime logging;
-- configurable game-data discovery;
-- detection of the MC3 ARMv7 native library;
-- developer game-data inspection tool;
-- initial runtime tests;
-- Dynarmic A32 ARMv7 JIT integration and smoke test;
-- pinned external dependency configuration;
-- initial Linux CI.
-
-Not implemented yet:
-
-- ARM ELF loading;
-- Android/Bionic compatibility;
-- minimal JNI;
-- Android AssetManager;
-- EGL/OpenGL ES bridge;
-- audio;
-- PC input;
-- actual MC3 startup;
-- multiplayer.
+This is not yet a playable PC port. Graphics, JNI, Android filesystem APIs, audio, PC input, and the actual MC3 startup path are still under development.
 
 ## Game data
 
-The project expects the user to provide compatible MC3 game data.
+The reference target is Modern Combat 3 v1.1.7g.
 
-The development reference asset repository is:
+The launcher accepts either an extracted game-data directory or the .apk itself.
 
-https://github.com/yoimdoingstuff/mc3assets
-
-Do not add the original APK/OBB or extracted proprietary game data to this repository as normal source files.
-
-The eventual setup tool will accept an APK/OBB directory and prepare the runtime automatically.
-
-For the current bootstrap, pass an extracted directory containing:
-
-    lib/armeabi-v7a/libModernCombat3.so
+When given an APK, the runtime extracts only the MC3 native library into its cache. It does not install Android and does not unpack the entire APK.
 
 Example:
 
-    mc3 --game-data C:\path\to\mc3-data
+    mc3.exe --game-data "C:\\Games\\MC3\\Modern-Combat-3-Fallen-Nation-v1-1-7g.apk"
 
-or:
-
-    mc3inspect C:\path\to\mc3-data
-    mc3inspect --runtime
-
-## Build
-
-Requires CMake 3.20+ and a C++20-capable compiler.
-
-    cmake -S . -B build
-    cmake --build build
-    ctest --test-dir build --output-on-failure
-
-The default build uses Dynarmic for ARMv7 execution. Set MC3_ENABLE_DYNARMIC=OFF to build the host/tooling skeleton without that backend.
-
-Dynarmic is fetched at a pinned commit and configured with only the A32 frontend for this project.
-
-## Runtime design
-
-    Original MC3 ARMv7 code
-            |
-            v
-    ARMv7 execution/JIT layer
-            |
-            v
-    Minimal Android compatibility layer
-            |
-            +-- JNI
-            +-- libc/POSIX
-            +-- Android filesystem
-            +-- AssetManager
-            +-- EGL/GLES
-            +-- audio
-            +-- input
-            |
-            v
-    PC platform layer
-            |
-            +-- Windows
-            +-- keyboard/mouse
-            +-- gamepad
-            +-- LAN/Wi-Fi
-
-No complete Android system image is intended.
+The runtime cache is controlled with --runtime-root.
 
 ## Storage goal
 
-The target is under 50 MB preferred runtime overhead, with 100 MB as the hard design ceiling, excluding the user-supplied game data and optional caches.
+The compatibility runtime is designed to stay small:
 
-Dynarmic's JIT code cache is memory rather than a shipped Android system image. The project will measure the final packaged executable/runtime size before release.
+- preferred extra runtime overhead: under 50 MB;
+- hard target: under 100 MB;
+- the APK/OBB game data is not copied into the runtime cache wholesale.
 
-## Multiplayer goal
+The native .so is temporarily materialized into the cache because the current loader operates on a normal ELF file. A later milestone can eliminate even that copy by loading the ELF directly from the APK archive.
 
-The long-term target is:
+## Developer tools
 
-- PC to PC LAN/Wi-Fi;
-- PC to Android LAN/Wi-Fi;
-- PC to iOS LAN/Wi-Fi;
-- Android to iOS where the original protocol permits it;
-- optional community rehosted servers if the original service protocol can be reproduced.
+mc3inspect can inspect an APK, an extracted game-data directory, an ARM ELF library, or the configured runtime backend.
 
-Protocol compatibility must be tested rather than assumed.
+## Multiplayer and controls
 
-## Reference implementations
+The end goal is a PC-native-feeling game:
 
-The architecture is informed by the public MC3 Vita loader:
+- keyboard/mouse controls;
+- gamepad controls;
+- no touchscreen control overlay;
+- widescreen/resizable output;
+- LAN/Wi-Fi multiplayer where the original protocol permits it;
+- compatibility with Android/iOS clients where the protocol can be reproduced;
+- an optional community/rehosted server path.
 
-https://github.com/v-atamanenko/mc3-vita
+Those features are planned but are not yet implemented.
 
-The ARM execution layer currently uses Dynarmic's A32 JIT backend:
+## Legal/data boundary
 
-https://github.com/azahar-emu/dynarmic
+The repository contains compatibility/runtime code and tooling. It does not need to redistribute the original MC3 APK, OBB files, native library, or other proprietary game assets.
 
-The PC runtime is a separate implementation and does not require a Vita installation.
+Users should supply their own compatible game data.
 
-See agents.md, architecture.md, and TODO.md for the engineering roadmap.
+## Reference
+
+The architecture is informed by the public MC3 Vita loader by v-atamanenko, which targets the Android 1.1.7g release and uses the ARMv7 libModernCombat3.so from the APK.
