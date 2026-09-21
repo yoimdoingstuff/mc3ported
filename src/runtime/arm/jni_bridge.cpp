@@ -3,10 +3,12 @@
 #include "mc3/arm/guest_cpu.hpp"
 #include "mc3/log.hpp"
 
+#include <algorithm>
 #include <cstdint>
+#include <cstring>
 #include <optional>
 #include <string>
-#include <cstring>\n#include <algorithm>
+#include <string_view>
 
 namespace mc3::arm {
 namespace {
@@ -179,7 +181,6 @@ std::uint32_t JniBridge::hash_handle(
     std::uint32_t first_arg,
     std::uint32_t second_arg
 ) const {
-    // Stable, non-zero guest handle. These are opaque to the guest.
     auto mix = [](std::uint32_t value) {
         value ^= value >> 16;
         value *= 0x7feb352du;
@@ -217,6 +218,7 @@ std::uint32_t JniBridge::read_guest_string_length(
         }
     }
 
+    (void)guest;
     return maximum;
 }
 
@@ -237,8 +239,6 @@ std::string JniBridge::read_guest_string(
             break;
         }
 
-        // JNI strings used for names/signatures are ASCII-compatible.
-        // Keep logging bounded and replace embedded control bytes.
         const char character = static_cast<char>(*byte);
         result.push_back(
             character >= 0x20 && character <= 0x7e
@@ -259,11 +259,26 @@ bool JniBridge::write_guest_u32(
         return false;
     }
 
+    (void)guest;
     return memory_->write(
         address,
         &value,
         sizeof(value)
     );
+}
+
+std::optional<JniBridge::RegisteredNative> JniBridge::find_registered_native(
+    std::string_view name,
+    std::string_view signature
+) const {
+    for (const auto& native : registered_natives_) {
+        if (read_guest_string(native.name, 1024) == name &&
+            read_guest_string(native.signature, 1024) == signature) {
+            return native;
+        }
+    }
+
+    return std::nullopt;
 }
 
 void JniBridge::handle(
@@ -277,7 +292,6 @@ void JniBridge::handle(
 
     if (const auto index = parse_index(symbol, "jni.vm.")) {
         if (*index == kVmGetEnv) {
-            // JavaVM::GetEnv(vm, &env, version)
             const auto env_out = guest.register_value(1);
             if (!write_guest_u32(guest, env_out, env_pointer_)) {
                 guest.set_register(0, 0xFFFFFFFCu);
@@ -306,7 +320,6 @@ void JniBridge::handle(
             return;
 
         case kJniFindClass:
-            // Return the class-name pointer as an opaque, stable class handle.
             guest.set_register(0, guest.register_value(1));
             return;
 
@@ -340,15 +353,15 @@ void JniBridge::handle(
             return;
 
         case kJniGetStringUtfChars:
-        case 165: // GetStringChars
+        case 165:
             guest.set_register(0, guest.register_value(1));
             return;
 
         case kJniReleaseStringUtfChars:
-        case 166: // ReleaseStringChars
-        case 22:  // DeleteGlobalRef
-        case 23:  // DeleteLocalRef
-        case 191: // ReleaseBooleanArrayElements
+        case 166:
+        case 22:
+        case 23:
+        case 191:
         case 192:
         case 193:
         case 194:
@@ -359,14 +372,14 @@ void JniBridge::handle(
             guest.set_register(0, 0);
             return;
 
-        case 21: // NewGlobalRef
-        case 25: // NewLocalRef
-        case 31: // GetObjectClass
-        case 172: // NewObjectArray, conservative handle
+        case 21:
+        case 25:
+        case 31:
+        case 172:
             guest.set_register(0, guest.register_value(1));
             return;
 
-        case 24: // IsSameObject
+        case 24:
             guest.set_register(
                 0,
                 guest.register_value(1) == guest.register_value(2)
@@ -375,13 +388,11 @@ void JniBridge::handle(
             );
             return;
 
-        case 32: // IsInstanceOf
+        case 32:
             guest.set_register(0, 1);
             return;
 
         case kJniRegisterNatives: {
-            // JNINativeMethod is three 32-bit guest pointers:
-            // name, signature, fnPtr.
             const auto clazz = guest.register_value(1);
             const auto methods = guest.register_value(2);
             const auto count = guest.register_value(3);
@@ -396,13 +407,12 @@ void JniBridge::handle(
                 return;
             }
 
-            // Multiple classes may register native tables during startup.
-            // Keep earlier registrations instead of discarding them on each call.
             if (registered_natives_.size() + count > 16384u) {
                 log_error("Guest RegisterNatives exceeded the native registration limit.");
                 guest.set_register(0, static_cast<std::uint32_t>(-1));
                 return;
             }
+
             registered_natives_.reserve(registered_natives_.size() + count);
 
             for (std::uint32_t i = 0; i < count; ++i) {
@@ -468,7 +478,7 @@ void JniBridge::handle(
                     guest.register_value(1),
                     vm_pointer_
                 )) {
-                guest.set_register(0, -1);
+                guest.set_register(0, static_cast<std::uint32_t>(-1));
                 return;
             }
             guest.set_register(0, 0);
@@ -479,9 +489,6 @@ void JniBridge::handle(
             return;
 
         default:
-            // Most unimplemented JNI calls are safe to treat as neutral
-            // bootstrap stubs for now. They will become concrete services
-            // as runtime traces identify what MC3 actually needs.
             log_debug(
                 "Unhandled guest JNI function slot: " +
                 std::to_string(slot)
