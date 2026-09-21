@@ -1,7 +1,6 @@
 # TODO
 
 Legend:
-
 - [ ] Not started
 - [~] In progress
 - [x] Completed
@@ -12,47 +11,51 @@ Legend:
 - [x] Create project architecture and agent guidance.
 - [x] Define user-supplied game-data workflow.
 - [x] Define sub-100 MB runtime-overhead goal.
-- [ ] Add CMake project skeleton.
-- [ ] Add CI build for the PC runtime.
+- [x] Add CMake project skeleton.
+- [x] Add initial CI build for the runtime.
 - [ ] Add formatting/static-analysis configuration.
-- [ ] Add a basic runtime logging system.
+- [x] Add a basic runtime logging system.
+- [x] Add a .gitignore for builds and runtime data.
 
 ## Phase 1: Reference game/data pipeline
 
 - [ ] Document the supported MC3 Android package/version.
-- [ ] Add APK inspection tool.
+- [x] Add game-data inspection tool.
 - [ ] Add APK/ZIP asset enumeration.
 - [ ] Add OBB discovery and validation.
-- [ ] Add configurable game-data directory.
-- [ ] Validate ARM ABI and native library presence.
-- [ ] Detect required native libraries automatically.
-- [ ] Add a clean first-run error when game data is missing.
-- [ ] Keep proprietary game data outside the source tree.
+- [x] Add configurable game-data directory.
+- [x] Validate ARM ABI and native library presence.
+- [x] Detect libModernCombat3.so automatically.
+- [x] Add a clean error when game data is missing.
+- [x] Keep proprietary game data outside the source tree.
+- [ ] Add an APK/OBB setup/import tool.
 
 ## Phase 2: ARM execution
 
-- [ ] Evaluate ARMv7 user-mode translation/emulation options.
-- [ ] Select the smallest suitable runtime.
-- [ ] Integrate the ARM32 execution backend.
+- [x] Evaluate ARMv7 user-mode translation/emulation options.
+- [x] Select Dynarmic A32 as the initial x86-64 ARMv7 JIT backend.
+- [x] Integrate Dynarmic into the build.
+- [x] Add an ARMv7 execution smoke test.
 - [ ] Implement ARM ELF loading.
-- [ ] Implement required memory mappings.
+- [ ] Implement guest memory mappings.
 - [ ] Implement relocation/symbol handling.
 - [ ] Add diagnostics for unresolved imports.
-- [ ] Load the original MC3 native library.
-- [ ] Reach the first native entry point.
+- [ ] Load the original MC3 native library through the custom loader.
+- [ ] Reach the first real MC3 native entry point.
 - [ ] Verify startup without Android installed.
 
 ## Phase 3: Dynamic loading / ABI
 
-- [ ] Implement `dlopen` compatibility.
-- [ ] Implement `dlsym` compatibility.
-- [ ] Implement `dlclose` compatibility.
-- [ ] Implement required `dlerror` behavior.
+- [ ] Implement dlopen compatibility.
+- [ ] Implement dlsym compatibility.
+- [ ] Implement dlclose compatibility.
+- [ ] Implement required dlerror behavior.
 - [ ] Map required Bionic/libc symbols.
 - [ ] Map required pthread symbols.
 - [ ] Map required time/clock functions.
 - [ ] Map required memory APIs.
 - [ ] Add missing-symbol logging and callsite diagnostics.
+- [ ] Add ARM EABI helper compatibility.
 
 ## Phase 4: Minimal Android environment
 
@@ -80,7 +83,7 @@ Legend:
 ### AssetManager
 
 - [ ] Implement asset open/read/seek/close.
-- [ ] Implement asset size queries.
+- [ ] Implement asset size/remaining-length queries.
 - [ ] Implement required directory enumeration.
 - [ ] Add APK/OBB-backed asset access.
 - [ ] Avoid mandatory full asset extraction.
@@ -139,6 +142,7 @@ Legend:
 - [ ] Remove/skip touch-only prompts where practical.
 - [ ] Ensure mouse cursor/input mode behaves correctly in gameplay.
 - [ ] Verify no virtual buttons obscure the game.
+- [ ] Add raw-input/mouse sensitivity options.
 
 ## Phase 8: PC presentation
 
@@ -177,7 +181,7 @@ Legend:
 - [ ] Test Windows-to-Android.
 - [ ] Test Windows-to-iOS.
 - [ ] Test Android-to-iOS through the compatible LAN path.
-- [ ] Document any version/build restrictions.
+- [ ] Document version/build restrictions.
 - [ ] Avoid assuming cross-platform compatibility without a real test.
 
 ## Phase 11: Rehosted multiplayer
@@ -207,6 +211,7 @@ Legend:
 - [ ] Add optional cache cleanup.
 - [ ] Profile startup time.
 - [ ] Profile frame pacing.
+- [ ] Measure Dynarmic code-cache memory separately from shipped disk size.
 
 ## Phase 13: Compatibility hardening
 
@@ -235,21 +240,25 @@ Legend:
 - [ ] Document known limitations.
 - [ ] Publish release artifacts.
 - [ ] Verify runtime size against storage goal.
+- [ ] Include required third-party notices.
 
 ## Current milestone
 
-**Milestone M0: Architecture and repository foundation**
+**Milestone M1: bootstrap + ARMv7 backend**
 
-Done:
-
-- project goal defined;
-- minimal-Android strategy defined;
-- storage constraint defined;
-- PC-control target defined;
-- multiplayer target defined;
-- architecture document created;
-- agent/developer guidance created.
+Completed:
+- project architecture and developer guidance;
+- CMake runtime/tooling skeleton;
+- runtime logging;
+- game-data discovery and ARM library validation;
+- mc3inspect;
+- runtime unit test;
+- CI bootstrap;
+- Dynarmic A32 dependency integration;
+- ARMv7 JIT smoke test.
 
 Next milestone:
 
-**M1: executable + game-data pipeline + ARMv7 runtime proof-of-concept**
+**M2: custom ARM ELF loader + guest memory map**
+
+The goal of M2 is to load the actual user-supplied libModernCombat3.so into a guest address space and begin resolving its dynamic dependencies without Android installed.

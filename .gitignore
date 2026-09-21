@@ -1,0 +1,23 @@
+# Build output
+build/
+out/
+dist/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Runtime data
+runtime/
+saves/
+game-data/
+mc3-data/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake-build-*/
+
+# Generated developer files
+compile_commands.json

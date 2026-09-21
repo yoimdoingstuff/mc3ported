@@ -55,6 +55,8 @@ That ARM execution layer is therefore a first-class subsystem rather than part o
 
 ## 3. Repository layout
 
+The current implementation is intentionally small. The loader, JNI, Android shims, graphics, audio, input, and networking are added as separate subsystems rather than hidden inside one platform file.
+
 Recommended source tree:
 
 ```
@@ -128,9 +130,9 @@ Responsibilities:
 - expose hooks for diagnostics;
 - provide controlled calls between ARM code and native host shims.
 
-This layer should preferably use a mature ARM32 user-mode translation/emulation solution. Writing a complete dynamic ARMv7 translator from scratch is unnecessary scope unless existing solutions prove unsuitable.
+The project currently uses Dynarmic's A32 JIT as the ARMv7 execution backend. The pinned revision is e77b1ba0b7da7cbe93021b01a663acfe7c4dd516. Only the A32 frontend is enabled. The current integration only proves CPU execution with a smoke test; it does not yet load MC3's ELF.
 
-The execution layer must not depend on the existence of a complete Android userspace.
+The execution layer must not depend on the existence of a complete Android userspace. Dynarmic only owns guest CPU execution and callbacks into our guest memory system.
 
 ## 6. Dynamic loader
 
