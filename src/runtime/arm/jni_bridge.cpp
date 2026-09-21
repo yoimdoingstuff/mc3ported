@@ -62,6 +62,169 @@ std::optional<std::uint32_t> parse_index(
     return result;
 }
 
+
+std::optional<std::uint32_t> reference_method_id(std::string_view name) {
+    struct Entry {
+        std::uint32_t id;
+        std::string_view name;
+    };
+
+    static constexpr Entry entries[] = {
+        {102, "getPreferenceString"},
+        {103, "getPackage"},
+        {104, "getSaveFolder"},
+        {105, "getContext"},
+        {106, "getUserAgent"},
+        {107, "getResource"},
+        {108, "setupPaths"},
+        {109, "createView"},
+        {110, "setViewSettings"},
+        {111, "setCurrentContext"},
+        {112, "enableAccelerometer"},
+        {113, "enableGyroscope"},
+        {114, "openBrowser"},
+        {115, "openGLLive"},
+        {116, "notifyTrophy"},
+        {117, "openIGP"},
+        {118, "getDeviceLanguage"},
+        {119, "setCalibratingGyro"},
+        {120, "resetGyroCalibration"},
+        {121, "setVisibility"},
+        {122, "getText"},
+        {123, "setText"},
+        {124, "getSystemService"},
+        {125, "hasGyroscope"},
+        {126, "isXperiaPlay"},
+        {127, "isDeviceOpened"},
+        {128, "mustSwapButtons"},
+        {129, "isHTCDevice"},
+        {130, "isGyroSensibilityHigh"},
+        {131, "isGyroSensibilityLow"},
+        {132, "isGyroPendingToFix"},
+        {133, "ignoreGyroLowInc"},
+        {134, "isGyroInvertedX"},
+        {135, "isInvertedPitchYaw"},
+        {136, "isSwitchRollToYaw"},
+        {137, "useGeneration0"},
+        {138, "useGeneration1"},
+        {139, "useGeneration2"},
+        {140, "getProcessorNum"},
+        {141, "isFirstRunOfTheDay"},
+        {142, "isHoneycombDevice"},
+        {143, "isIceCreamSandwich"},
+        {144, "isSamsung_I9250"},
+        {145, "isSamsung_I510"},
+        {146, "isSamsung_P7100"},
+        {147, "isAsus_TF201"},
+        {148, "isHTC_Nexus9"},
+        {149, "getZipName"},
+        {150, "getPatchFileLocation"},
+        {151, "deleteOldData"},
+        {152, "sendURLRequest"},
+        {153, "getServerResponse"},
+        {154, "hasServerResponse"},
+        {155, "showDisclaimer"},
+        {156, "showCantGoBackPopup"},
+        {157, "showParentButton"},
+        {158, "hideParentButton"},
+        {159, "getTotalItems"},
+        {160, "getData"},
+        {161, "GetState"},
+        {162, "android/content/Intent/<init>"},
+        {163, "setClassName"},
+        {164, "putExtra"},
+        {165, "android/os/Bundle/<init>"},
+        {166, "putString"},
+        {167, "getByteArray"},
+        {168, "putByteArray"},
+        {169, "getInt"},
+        {170, "putInt"},
+        {171, "getLong"},
+        {172, "putLong"},
+        {173, "containsKey"},
+        {174, "clear"},
+        {175, "getSDFolder"},
+        {176, "showloading"},
+        {177, "android/media/AudioTrack/<init>"},
+        {178, "getMinBufferSize"},
+        {179, "play"},
+        {180, "pause"},
+        {181, "stop"},
+        {182, "release"},
+        {183, "write"},
+        {184, "getPlayState"},
+        {185, "getNativeOutputSampleRate"},
+        {186, "setThreadPriority"},
+        {187, "setFlags"},
+        {188, "getIntExtra"},
+        {189, "removeExtra"},
+        {190, "addCategory"},
+        {191, "startActivity"},
+        {192, "startActivityForResult"},
+        {193, "hasWindowFocus"},
+        {194, "getWindow"},
+        {195, "setVolumeControlStream"},
+        {196, "requestWindowFeature"},
+        {197, "setContentView"},
+        {198, "getIntent"},
+        {199, "finish"},
+        {200, "getWindowManager"},
+        {201, "hideloading"},
+        {202, "hidelogoscreen"},
+        {203, "HasPushNotification"},
+        {204, "LaunchGamebyNotification"},
+        {205, "ResetNotificationStatus"},
+        {206, "ResetLaunchStatus"},
+        {207, "EnableDisablePushNotifications"},
+        {208, "ShowAlert"},
+        {209, "GetTokenID"},
+        {210, "GetUserID"},
+        {211, "SendPush"},
+        {212, "SendPushToMyself"},
+        {213, "SetOfflineUserCredential"},
+        {214, "SetOnlineUserCredential"},
+        {215, "SetOfflineDeviceCredential"},
+        {216, "DeletePush"},
+        {217, "GetBundleData"},
+        {218, "GetJanusToken"},
+        {219, "getString"},
+        {220, "getIMEI"},
+        {221, "getHDIDFVd"},
+        {222, "getCountryCode"},
+        {223, "getDeviceName"},
+        {224, "getDeviceFW"},
+        {225, "IsWifiEnabled"}
+    };
+
+    for (const auto& entry : entries) {
+        if (entry.name == name) {
+            return entry.id;
+        }
+    }
+    return std::nullopt;
+}
+
+std::optional<std::uint32_t> allocate_guest_string(
+    loader::GuestMemory& memory,
+    std::string_view value
+) {
+    const auto address =
+        memory.allocate_tail(value.size() + 1, 1);
+    if (!address) {
+        return std::nullopt;
+    }
+
+    if (!memory.write(
+            *address,
+            value.data(),
+            value.size()) ||
+        !memory.zero(*address + static_cast<std::uint32_t>(value.size()), 1)) {
+        return std::nullopt;
+    }
+
+    return address;
+}
+
 } // namespace
 
 bool JniBridge::initialize(
@@ -324,9 +487,16 @@ void JniBridge::handle(
             return;
 
         case kJniGetMethodId:
-        case kJniGetFieldId:
-        case kJniGetStaticMethodId:
-        case kJniGetStaticFieldId:
+        case kJniGetStaticMethodId: {
+            const auto name =
+                read_guest_string(guest.register_value(2), 1024);
+            if (name) {
+                if (const auto known = reference_method_id(*name)) {
+                    guest.set_register(0, *known);
+                    return;
+                }
+            }
+
             guest.set_register(
                 0,
                 hash_handle(
@@ -336,9 +506,173 @@ void JniBridge::handle(
                 )
             );
             return;
+        }
+
+        case kJniGetFieldId:
+        case kJniGetStaticFieldId: {
+            const auto name =
+                read_guest_string(guest.register_value(2), 256);
+            if (name && *name == "WINDOW_SERVICE") {
+                guest.set_register(0, 0);
+                return;
+            }
+            if (name && *name == "SDK_INT") {
+                guest.set_register(0, 1);
+                return;
+            }
+
+            guest.set_register(
+                0,
+                hash_handle(
+                    guest,
+                    guest.register_value(2),
+                    guest.register_value(3)
+                )
+            );
+            return;
+        }
 
         case kJniNewStringUtf:
             guest.set_register(0, guest.register_value(1));
+            return;
+
+        // JNI method invocation slots are fixed by the JNI interface table.
+        // The method IDs below mirror the reference MC3 Vita loader's
+        // 1.1.7g FalsoJNI table. This lets the real ARM code call the same
+        // Android-side methods without inventing game-specific entrypoints.
+        case 34:
+        case 35:
+        case 36:
+        case 114:
+        case 115:
+        case 116: {
+            const method = guest.register_value(2);
+            std::optional<std::string> value;
+
+            switch (method) {
+                case 102: value = "dummy"; break;
+                case 103: value = "com.gameloft.android.ANMP.GloftM3HM"; break;
+                case 104: value = "dummy"; break;
+                case 106: value = "dummy"; break;
+                case 118: value = "dummy"; break;
+                case 149:
+                    value = "main.1120.com.gameloft.android.ANMP.GloftM3HM.obb";
+                    break;
+                case 150:
+                    value = "patch.11428.com.gameloft.android.ANMP.GloftM3HM.obb";
+                    break;
+                case 153: value = "dummy"; break;
+                case 175: value = "data"; break;
+                case 177: value = "dummy"; break;
+                case 187: value = "dummy"; break;
+                case 209:
+                case 210:
+                case 211:
+                case 212:
+                case 218:
+                case 219:
+                    value = "dummy";
+                    break;
+                case 220:
+                case 221:
+                    value = "351066496380730";
+                    break;
+                case 222: value = "us"; break;
+                case 223: value = "Xperia Play"; break;
+                case 224: value = "4.1.2"; break;
+                default:
+                    break;
+            }
+
+            if (value) {
+                if (const auto address =
+                        allocate_guest_string(*memory_, *value)) {
+                    guest.set_register(0, *address);
+                } else {
+                    guest.set_register(0, 0);
+                }
+            } else {
+                // Reference loader returns a stable dummy object for these
+                // Android framework methods.
+                guest.set_register(0, 0x42424242u);
+            }
+            return;
+        }
+
+        case 37:
+        case 38:
+        case 39:
+        case 117:
+        case 118:
+        case 119: {
+            switch (guest.register_value(2)) {
+                case 126: // isXperiaPlay
+                case 127: // isDeviceOpened
+                case 139: // useGeneration2
+                    guest.set_register(0, 1);
+                    break;
+                default:
+                    guest.set_register(0, 0);
+                    break;
+            }
+            return;
+        }
+
+        case 49:
+        case 50:
+        case 51:
+        case 129:
+        case 130:
+        case 131: {
+            switch (guest.register_value(2)) {
+                case 140: // getProcessorNum
+                    guest.set_register(0, 3);
+                    break;
+                case 178: // getMinBufferSize
+                    guest.set_register(0, 4096);
+                    break;
+                case 183: // AudioTrack.write
+                    guest.set_register(0, guest.register_value(3));
+                    break;
+                case 184:
+                case 188:
+                case 203:
+                case 204:
+                case 215:
+                case 216:
+                case 225:
+                case 159:
+                case 161:
+                case 169:
+                    guest.set_register(0, 0);
+                    break;
+                case 185: // getNativeOutputSampleRate
+                    guest.set_register(0, 44100);
+                    break;
+                default:
+                    guest.set_register(0, 0);
+                    break;
+            }
+            return;
+        }
+
+        case 52:
+        case 53:
+        case 54:
+        case 132:
+        case 133:
+        case 134:
+            guest.set_register(0, 0);
+            guest.set_register(1, 0);
+            return;
+
+        case 61:
+        case 62:
+        case 63:
+        case 141:
+        case 142:
+        case 143:
+            guest.set_register(0, 0);
             return;
 
         case kJniGetStringUtfLength:
@@ -486,6 +820,22 @@ void JniBridge::handle(
 
         case kJniExceptionCheck:
             guest.set_register(0, 0);
+            return;
+
+        case 145: // GetStaticObjectField
+            if (guest.register_value(2) == 0) {
+                if (const auto address = allocate_guest_string(*memory_, "window")) {
+                    guest.set_register(0, *address);
+                } else {
+                    guest.set_register(0, 0);
+                }
+            } else {
+                guest.set_register(0, 0);
+            }
+            return;
+
+        case 150: // GetStaticIntField
+            guest.set_register(0, guest.register_value(2) == 1 ? 19u : 0u);
             return;
 
         default:
