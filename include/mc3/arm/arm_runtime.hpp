@@ -6,6 +6,7 @@
 #include "mc3/arm/jni_bridge.hpp"
 #include "mc3/arm/libc_bridge.hpp"
 #include "mc3/arm/dlfcn_bridge.hpp"
+#include "mc3/arm/asset_bridge.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -32,6 +33,12 @@ public:
     ~ArmRuntime();
 
     bool initialize();
+
+    bool configure_assets(
+        const std::filesystem::path& filesystem_assets_root,
+        const std::filesystem::path& apk_path,
+        const std::filesystem::path& obb_root
+    );
 
     bool configure_filesystem(
         const std::filesystem::path& obb_root,
@@ -68,6 +75,7 @@ private:
     AndroidFsBridge filesystem_;
     LibcBridge libc_;
     DlfcnBridge dlfcn_;
+    AssetBridge assets_;
 };
 
 } // namespace mc3::arm
