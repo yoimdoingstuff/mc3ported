@@ -3,6 +3,7 @@
 #include "mc3/arm/guest_cpu.hpp"
 #include "mc3/arm/asset_bridge.hpp"
 #include "mc3/arm/dlfcn_bridge.hpp"
+#include "mc3/arm/pthread_bridge.hpp"
 #include "mc3/arm/jni_bridge.hpp"
 #include "mc3/loader/elf32.hpp"
 #include "mc3/loader/imports.hpp"
@@ -311,6 +312,61 @@ int main() {
     assert(dlfcn.handles("dlsym"));
     assert(dlfcn.handles("dlopen"));
     assert(!dlfcn.handles("dlwrite"));
+
+    mc3::loader::GuestMemory thread_memory;
+    assert(thread_memory.reserve(0x15000000, 0x4000));
+
+    const std::uint8_t thread_code[] = {
+        0x2A, 0x20, // movs r0, #42
+        0x70, 0x47  // bx lr
+    };
+    assert(thread_memory.write(
+        0x15000000,
+        thread_code,
+        sizeof(thread_code)
+    ));
+
+    mc3::arm::PthreadBridge pthread_bridge;
+    mc3::arm::GuestCpu thread_control_cpu;
+    assert(thread_control_cpu.initialize(&thread_memory));
+    assert(pthread_bridge.configure(
+        thread_memory,
+        [](std::uint32_t, mc3::arm::GuestCpu&) {}
+    ));
+
+    const auto thread_out = thread_memory.allocate_tail(4, 4);
+    const auto join_out = thread_memory.allocate_tail(4, 4);
+    assert(thread_out && join_out);
+
+    thread_control_cpu.set_register(0, *thread_out);
+    thread_control_cpu.set_register(1, 0);
+    thread_control_cpu.set_register(2, 0x15000001u);
+    thread_control_cpu.set_register(3, 123);
+    pthread_bridge.handle("pthread_create", thread_control_cpu);
+    assert(thread_control_cpu.register_value(0) == 0);
+
+    std::uint32_t thread_handle = 0;
+    std::memcpy(
+        &thread_handle,
+        thread_memory.data(*thread_out),
+        sizeof(thread_handle)
+    );
+    assert(thread_handle >= 2);
+
+    mc3::arm::GuestCpu join_cpu;
+    assert(join_cpu.initialize(&thread_memory));
+    join_cpu.set_register(0, thread_handle);
+    join_cpu.set_register(1, *join_out);
+    pthread_bridge.handle("pthread_join", join_cpu);
+    assert(join_cpu.register_value(0) == 0);
+
+    std::uint32_t thread_result = 0;
+    std::memcpy(
+        &thread_result,
+        thread_memory.data(*join_out),
+        sizeof(thread_result)
+    );
+    assert(thread_result == 42);
 
     std::filesystem::remove(elf_path, ec);
     std::filesystem::remove_all(temp, ec);
