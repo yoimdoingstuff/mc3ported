@@ -4,6 +4,7 @@
 namespace mc3 {
 struct Config {
     std::filesystem::path game_data;
+    std::filesystem::path obb_root;
     std::filesystem::path runtime_root;
     std::filesystem::path save_root;
 };
