@@ -7,6 +7,7 @@
 #include "mc3/arm/libc_bridge.hpp"
 #include "mc3/arm/dlfcn_bridge.hpp"
 #include "mc3/arm/asset_bridge.hpp"
+#include "mc3/arm/pthread_bridge.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -76,6 +77,7 @@ private:
     LibcBridge libc_;
     DlfcnBridge dlfcn_;
     AssetBridge assets_;
+    PthreadBridge pthread_;
 };
 
 } // namespace mc3::arm
