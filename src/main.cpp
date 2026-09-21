@@ -52,6 +52,15 @@ int main(int argc, char** argv) {
             ? data->obb_root
             : (config->obb_root.empty() ? std::filesystem::path{} : config->obb_root);
 
+    if (!arm_runtime.configure_assets(
+            config->runtime_root / "data" / "assets",
+            data->source_apk.value_or(std::filesystem::path{}),
+            obb_root
+        )) {
+        mc3::log_error("Android AssetManager configuration failed.");
+        return 5;
+    }
+
     if (!arm_runtime.configure_filesystem(
             obb_root,
             config->save_root / "appdata",
