@@ -1,12 +1,14 @@
 #include "mc3/arm/arm_runtime.hpp"
 #include "mc3/game_data.hpp"
 #include "mc3/arm/guest_cpu.hpp"
+#include "mc3/arm/jni_bridge.hpp"
 #include "mc3/loader/elf32.hpp"
 #include "mc3/loader/imports.hpp"
 #include "mc3/loader/memory.hpp"
 
 #include <cassert>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -142,6 +144,41 @@ int main() {
     assert(import_table.size() == 1);
     assert(import_table.symbol_for_slot(1).has_value());
     assert(*import_table.symbol_for_slot(1) == "puts");
+
+    const auto stub2 = import_table.bind("malloc");
+    assert(stub2.has_value());
+    assert((*stub2 - *stub) == 12);
+
+    mc3::arm::JniBridge jni_bridge;
+    mc3::loader::GuestMemory jni_memory;
+    assert(jni_memory.reserve(0x13000000, 0x1000));
+
+    mc3::loader::GuestImportTable jni_imports(jni_memory);
+    assert(jni_bridge.initialize(jni_memory, jni_imports));
+    assert(jni_bridge.vm_pointer() != 0);
+    assert(jni_bridge.env_pointer() != 0);
+    assert(jni_bridge.handles("jni.fn.4"));
+    assert(jni_bridge.handles("jni.vm.6"));
+    assert(!jni_bridge.handles("libc.so"));
+
+    mc3::arm::GuestCpu jni_cpu;
+    assert(jni_cpu.initialize(&jni_memory));
+    jni_bridge.handle("jni.fn.4", jni_cpu);
+    assert(jni_cpu.register_value(0) == 0x00010006u);
+
+    mc3::arm::GuestCpu jni_vm_cpu;
+    assert(jni_vm_cpu.initialize(&jni_memory));
+    const auto env_out = jni_memory.allocate_tail(4, 4);
+    assert(env_out.has_value());
+    jni_vm_cpu.set_register(1, *env_out);
+    jni_bridge.handle("jni.vm.6", jni_vm_cpu);
+    std::uint32_t env_value = 0;
+    std::memcpy(
+        &env_value,
+        jni_memory.data(*env_out),
+        sizeof(env_value)
+    );
+    assert(env_value == jni_bridge.env_pointer());
 
     mc3::arm::GuestCpu import_cpu;
     assert(import_cpu.initialize(&cpu_memory));
