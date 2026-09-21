@@ -21,7 +21,7 @@ Legend:
 
 - [ ] Document the supported MC3 Android package/version.
 - [x] Add game-data inspection tool.
-- [ ] Add APK/ZIP asset enumeration.
+- [x] Add APK/ZIP asset enumeration.
 - [ ] Add OBB discovery and validation.
 - [x] Add configurable game-data directory.
 - [x] Validate ARM ABI and native library presence.
