@@ -28,6 +28,8 @@ add_library(mc3_runtime
     src/runtime/game_data.cpp
     src/runtime/log.cpp
     src/runtime/arm/arm_runtime.cpp
+    src/runtime/loader/elf32.cpp
+    src/runtime/loader/memory.cpp
 )
 
 target_include_directories(mc3_runtime

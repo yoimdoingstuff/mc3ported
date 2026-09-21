@@ -10,6 +10,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
 #include <stdexcept>
 
 namespace {
@@ -41,9 +42,7 @@ public:
     }
 
     void MemoryWrite8(std::uint32_t address, std::uint8_t value) override {
-        if (address < memory.size()) {
-            memory[address] = value;
-        }
+        if (address < memory.size()) memory[address] = value;
     }
 
     void MemoryWrite16(std::uint32_t address, std::uint16_t value) override {
@@ -65,9 +64,7 @@ public:
         throw std::runtime_error("Dynarmic interpreter fallback reached during smoke test");
     }
 
-    void CallSVC(std::uint32_t) override {
-        faulted = true;
-    }
+    void CallSVC(std::uint32_t) override { faulted = true; }
 
     void ExceptionRaised(
         std::uint32_t,
@@ -80,17 +77,12 @@ public:
         ticks_left = ticks > ticks_left ? 0 : ticks_left - ticks;
     }
 
-    std::uint64_t GetTicksRemaining() override {
-        return ticks_left;
-    }
+    std::uint64_t GetTicksRemaining() override { return ticks_left; }
 };
 
 bool dynarmic_smoke_test() {
     SmokeEnvironment environment;
 
-    // Thumb-1:
-    //   lsls r0, r1, #2
-    //   b .
     environment.memory[0] = 0x88;
     environment.memory[1] = 0x00;
     environment.memory[2] = 0xfe;
@@ -175,18 +167,38 @@ bool ArmRuntime::load_library(const std::filesystem::path& path) {
         return false;
     }
 
+    const auto parsed = loader::parse_arm32_elf(path);
+    if (!parsed) {
+        log_error("ARM ELF parsing failed: " + path.string());
+        return false;
+    }
+
+    if (!loader::load_arm32_elf(*parsed, memory_)) {
+        log_error("ARM ELF memory mapping failed: " + path.string());
+        return false;
+    }
+
+    image_ = parsed;
     loaded_library_ = path;
-    log_info("ARM library accepted for the next ELF-loader stage: " + path.string());
+    load_bias_ = memory_.base() - parsed->lowest_address;
+
+    char buffer[16]{};
+    std::snprintf(buffer, sizeof(buffer), "%08x", memory_.base());
+    log_info("ARM ELF mapped at guest base 0x" + std::string(buffer));
+    log_info("ARM ELF guest size: " + std::to_string(memory_.size()) + " bytes");
+
+    std::snprintf(buffer, sizeof(buffer), "%08x", parsed->entry + load_bias_);
+    log_info("ARM ELF entry: 0x" + std::string(buffer));
     return true;
 }
 
 bool ArmRuntime::call_entrypoint(const std::string& symbol) {
-    if (loaded_library_.empty()) {
+    if (!image_ || loaded_library_.empty()) {
         log_error("No ARM library is loaded.");
         return false;
     }
 
-    log_info("Entrypoint staging placeholder: " + symbol);
+    log_info("Entrypoint execution remains pending for symbol: " + symbol);
     return false;
 }
 
