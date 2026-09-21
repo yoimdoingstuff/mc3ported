@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -21,6 +22,7 @@ public:
         std::uint32_t signature = 0;
         std::uint32_t function = 0;
     };
+
     JniBridge() = default;
     ~JniBridge() = default;
 
@@ -42,6 +44,11 @@ public:
     std::uint32_t vm_pointer() const { return vm_pointer_; }
     std::uint32_t env_pointer() const { return env_pointer_; }
     const std::vector<RegisteredNative>& registered_natives() const { return registered_natives_; }
+
+    std::optional<RegisteredNative> find_registered_native(
+        std::string_view name,
+        std::string_view signature
+    ) const;
 
 private:
     std::uint32_t allocate_function_table(
