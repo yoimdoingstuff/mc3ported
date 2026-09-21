@@ -5,7 +5,7 @@
 
 #include <cstdint>
 #include <memory>
-#include <string_view>
+#include <string>\n#include <string_view>
 #include <vector>
 
 namespace mc3::arm {
@@ -65,6 +65,11 @@ private:
     std::uint32_t read_guest_string_length(
         GuestCpu& guest,
         std::uint32_t address
+    ) const;
+
+    std::string read_guest_string(
+        std::uint32_t address,
+        std::uint32_t maximum
     ) const;
 
     bool write_guest_u32(
