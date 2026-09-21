@@ -372,65 +372,19 @@ bool ArmRuntime::bootstrap_jni() {
         );
     }
 
-    // The Android launcher normally invokes these native entry points after
-    // JNI_OnLoad. Reproduce that startup sequence in the desktop guest so the
-    // ARM library reaches the same native initialization path as the APK.
-    struct BootstrapCall {
-        const char* symbol;
-        std::vector<std::uint32_t> arguments;
-        bool required;
-    };
-
-    // Do not guess Java launcher calls here. MC3 1.1.7g can register native
-    // methods dynamically from JNI_OnLoad, and hard-coding exports from a
-    // different build makes the guest fail before we can observe that path.
-    const std::array<BootstrapCall, 5> calls{{
-        {"Java_com_gameloft_glf_GL2JNILib_init", {env, 0}, false},
-        {"Java_video_MyVideoView_Init", {env}, false},
-        {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_Init", {env, 0}, false},
-        {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_nativeMC3Init", {env, 0}, false},
-        {"Java_com_gameloft_glf_GL2JNILib_resize", {env, 0, 960, 544}, false}
-    }};
-
-    const auto dynamic = loader::inspect_dynamic(*image_);
-    if (!dynamic || !dynamic->present) {
-        log_error("Unable to inspect MC3 exports during native bootstrap.");
-        return false;
-    }
-
-    for (const auto& bootstrap : calls) {
-        if (!loader::find_dynamic_symbol(
-                *image_,
-                *dynamic,
-                bootstrap.symbol
-            )) {
-            if (bootstrap.required) {
-                log_error(
-                    "Required MC3 native bootstrap export is missing: " +
-                    std::string(bootstrap.symbol)
-                );
-                return false;
-            }
-
-            log_debug(
-                "Optional MC3 native bootstrap export is missing: " +
-                std::string(bootstrap.symbol)
-            );
-            continue;
-        }
-
+    // MC3 1.1.7g may register its Java-facing native methods from
+    // JNI_OnLoad. Do not invent launcher exports here: the registration
+    // table observed above is the authoritative native interface for this
+    // build. The next bootstrap stage can invoke those registrations once
+    // their Java signatures and lifecycle roles are known.
+    if (jni_->registered_natives().empty()) {
+        log_warning("MC3 JNI_OnLoad registered no native methods.");
+    } else {
         log_info(
-            "Calling MC3 native bootstrap export: " +
-            std::string(bootstrap.symbol)
+            "MC3 JNI_OnLoad registered " +
+            std::to_string(jni_->registered_natives().size()) +
+            " native methods."
         );
-
-        if (!call_symbol(bootstrap.symbol, bootstrap.arguments)) {
-            log_error(
-                "MC3 native bootstrap export failed: " +
-                std::string(bootstrap.symbol)
-            );
-            return false;
-        }
     }
 
     return true;
