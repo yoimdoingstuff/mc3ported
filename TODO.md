@@ -40,11 +40,11 @@ Legend:
 - [x] Inspect PT_DYNAMIC dependencies, symbols, and ARM relocations.
 - [x] Apply R_ARM_RELATIVE relocations.
 - [x] Add mc3inspect dynamic-import reporting.
-- [ ] Implement ARM ELF loading into the live Dynarmic guest CPU.
-- [ ] Implement guest memory mappings.
-- [ ] Implement relocation/symbol handling.
-- [ ] Add diagnostics for unresolved imports.
-- [ ] Load the original MC3 native library through the custom loader.
+- [x] Implement ARM ELF loading into the live Dynarmic guest CPU.
+- [x] Implement guest memory mappings.
+- [~] Implement relocation/symbol handling.
+- [x] Add diagnostics for unresolved imports.
+- [x] Load the original MC3 native library through the custom loader.
 - [ ] Reach the first real MC3 native entry point.
 - [ ] Verify startup without Android installed.
 
@@ -56,7 +56,7 @@ Legend:
 - [ ] Implement required dlerror behavior.
 - [~] Map required Bionic/libc symbols.
 - [ ] Map required pthread symbols.
-- [ ] Map required time/clock functions.
+- [~] Map required time/clock functions.
 - [ ] Map required memory APIs.
 - [ ] Add missing-symbol logging and callsite diagnostics.
 - [ ] Add ARM EABI helper compatibility.
@@ -78,12 +78,12 @@ Legend:
 
 ### Android filesystem
 
-- [ ] Implement logical Android path mapping.
-- [ ] Implement app-private data path.
-- [ ] Implement OBB path mapping.
-- [ ] Implement external-storage path mapping.
+- [~] Implement logical Android path mapping.
+- [~] Implement app-private data path.
+- [~] Implement OBB path mapping.
+- [~] Implement external-storage path mapping.
 - [ ] Implement preferences/config path.
-- [ ] Prevent uncontrolled writes outside the runtime directory.
+- [~] Prevent uncontrolled writes outside the runtime directory.
 
 ### AssetManager
 
@@ -257,13 +257,18 @@ Completed:
 - runtime logging;
 - game-data discovery and ARM library validation;
 - mc3inspect;
-- runtime unit test;
-- CI bootstrap;
-- Dynarmic A32 dependency integration;
-- ARMv7 JIT smoke test.
+- runtime unit tests;
+- CI with Linux and Windows portability jobs;
+- Dynarmic A32 integration;
+- ARMv7 JIT smoke test;
+- live ARM ELF mapping and import trampolines;
+- dynamic export lookup and guest function calls;
+- guest-addressable JNI table;
+- Android path mapping;
+- initial libc/memory/string/file compatibility.
 
 Next milestone:
 
-**M3: imported-symbol ABI + guest CPU execution**
+**M3: verified MC3 JNI startup + Android asset layer**
 
-The goal of M3 is to take the loaded MC3 image, resolve its undefined symbols against the minimal compatibility runtime, provide guest-callable trampolines where required, and enter controlled ARM code through Dynarmic.
+The goal of M3 is to run the real MC3 JNI bootstrap against the supplied v1.1.7g library, trace missing JNI/Android calls, implement AssetManager compatibility, and reach the first stable native game initialization stage.
