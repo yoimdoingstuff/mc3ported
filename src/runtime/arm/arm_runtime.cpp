@@ -257,6 +257,11 @@ bool ArmRuntime::load_library(
         return false;
     }
 
+    if (!dlfcn_.configure(memory_, *image_, load_bias_)) {
+        log_error("Failed to initialize the dynamic-loader bridge.");
+        return false;
+    }
+
     cpu_->set_svc_handler(
         [this](std::uint32_t immediate, GuestCpu& guest) {
             if (immediate != 0xFFu || !imports_) {
@@ -282,6 +287,11 @@ bool ArmRuntime::load_library(
 
             if (libc_.handles(*symbol)) {
                 libc_.handle(*symbol, guest);
+                return;
+            }
+
+            if (dlfcn_.handles(*symbol)) {
+                dlfcn_.handle(*symbol, guest);
                 return;
             }
 
