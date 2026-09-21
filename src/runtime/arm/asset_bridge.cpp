@@ -9,6 +9,7 @@
 #include <cstring>
 #include <fstream>
 #include <optional>
+#include <limits>
 #include <string>
 
 namespace mc3::arm {
@@ -29,7 +30,35 @@ std::string normalize_asset_name(std::string_view name) {
         result.erase(0, 1);
     }
 
-    return result;
+    std::string safe;
+    std::string component;
+
+    for (const char character : result) {
+        if (character == '/') {
+            if (component == ".." || component.empty()) {
+                if (component == "..") {
+                    return {};
+                }
+            } else if (component != ".") {
+                if (!safe.empty()) safe.push_back('/');
+                safe += component;
+            }
+            component.clear();
+        } else {
+            component.push_back(character);
+        }
+    }
+
+    if (component == "..") {
+        return {};
+    }
+
+    if (!component.empty() && component != ".") {
+        if (!safe.empty()) safe.push_back('/');
+        safe += component;
+    }
+
+    return safe;
 }
 
 bool read_file(
