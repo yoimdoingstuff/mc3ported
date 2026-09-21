@@ -58,6 +58,13 @@ public:
 
     bool call_entrypoint(const std::string& symbol);
 
+    // Advance the real 1.1.7g game loop once. The symbol and call order are
+    // taken from the public MC3 Vita loader rather than guessed.
+    bool step_game();
+
+    // Query the game's own gameplay-state export after a frame or bootstrap.
+    bool gameplay_active() const;
+
     bool call_registered_native(
         std::string_view name,
         std::string_view signature,
