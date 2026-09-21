@@ -113,7 +113,7 @@ void DlfcnBridge::handle(
             loader::find_dynamic_symbol(
                 *image_,
                 *dynamic,
-                name
+                std::string(name)
             );
 
         if (!guest_symbol) {
