@@ -1,6 +1,7 @@
 #include "mc3/arm/arm_runtime.hpp"
 
 #include "mc3/arm/guest_cpu.hpp"
+#include "mc3/arm/jni_bridge.hpp"
 #include "mc3/log.hpp"
 
 #include <array>
@@ -224,6 +225,13 @@ bool ArmRuntime::load_library(
         return false;
     }
 
+    jni_ = std::make_unique<JniBridge>();
+    if (!jni_->initialize(memory_, *imports_)) {
+        log_error("Failed to initialize guest JNI bridge.");
+        jni_.reset();
+        return false;
+    }
+
     cpu_->set_svc_handler(
         [this](std::uint32_t immediate, GuestCpu& guest) {
             if (immediate != 0xFFu || !imports_) {
@@ -242,15 +250,37 @@ bool ArmRuntime::load_library(
                 return;
             }
 
-            log_debug(
-                "Guest import call: " +
-                *symbol
-            );
+            if (jni_ && jni_->handles(*symbol)) {
+                jni_->handle(*symbol, guest);
+                return;
+            }
 
-            // Initial ABI bridge returns 0. Real host implementations
-            // will replace this per imported symbol.
+            log_debug("Guest import call: " + *symbol);
             guest.set_register(0, 0);
         }
+    );
+
+    return true;
+}
+
+bool ArmRuntime::bootstrap_jni() {
+    if (!jni_ || !cpu_) {
+        log_error("JNI bootstrap requested before ARM runtime setup.");
+        return false;
+    }
+
+    const auto vm = jni_->vm_pointer();
+    const auto env = jni_->env_pointer();
+
+    log_info("Calling MC3 JNI_OnLoad...");
+    if (!call_symbol("JNI_OnLoad", {vm, 0})) {
+        log_error("MC3 JNI_OnLoad failed.");
+        return false;
+    }
+
+    log_info(
+        "MC3 JNI_OnLoad returned through the guest runtime. "
+        "JNIEnv=0x" + std::to_string(env)
     );
 
     return true;
