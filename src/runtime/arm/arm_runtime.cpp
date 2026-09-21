@@ -355,10 +355,22 @@ bool ArmRuntime::bootstrap_jni() {
         return false;
     }
 
+    const auto jni_version = cpu_->register_value(0);
     log_info(
-        "MC3 JNI_OnLoad returned through the guest runtime. "
-        "JNIEnv=0x" + std::to_string(env)
+        "MC3 JNI_OnLoad returned 0x" +
+        std::to_string(jni_version) +
+        " through the guest runtime. JNIEnv=0x" +
+        std::to_string(env)
     );
+
+    if (jni_version != 0x00010002u &&
+        jni_version != 0x00010004u &&
+        jni_version != 0x00010006u) {
+        log_warning(
+            "MC3 JNI_OnLoad returned an unexpected JNI version: 0x" +
+            std::to_string(jni_version)
+        );
+    }
 
     // The Android launcher normally invokes these native entry points after
     // JNI_OnLoad. Reproduce that startup sequence in the desktop guest so the
@@ -369,12 +381,14 @@ bool ArmRuntime::bootstrap_jni() {
         bool required;
     };
 
-    const std::array<BootstrapCall, 6> calls{{
-        {"Java_com_gameloft_glf_GL2JNILib_init", {env, 0}, true},
+    // Do not guess Java launcher calls here. MC3 1.1.7g can register native
+    // methods dynamically from JNI_OnLoad, and hard-coding exports from a
+    // different build makes the guest fail before we can observe that path.
+    const std::array<BootstrapCall, 5> calls{{
+        {"Java_com_gameloft_glf_GL2JNILib_init", {env, 0}, false},
         {"Java_video_MyVideoView_Init", {env}, false},
-        {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_Init", {env, 0}, true},
-        {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_nativeMC3Init", {env, 0}, true},
-        {"Java_com_gameloft_glf_GL2JNILib_getViewSettings", {}, false},
+        {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_Init", {env, 0}, false},
+        {"Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_nativeMC3Init", {env, 0}, false},
         {"Java_com_gameloft_glf_GL2JNILib_resize", {env, 0, 960, 544}, false}
     }};
 
