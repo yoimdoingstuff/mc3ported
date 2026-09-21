@@ -4,6 +4,7 @@
 #include "mc3/log.hpp"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace mc3::arm {
