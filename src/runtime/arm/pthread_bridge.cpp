@@ -350,9 +350,10 @@ void PthreadBridge::handle(std::string_view symbol, GuestCpu& guest) {
                 std::int32_t nanos = 0;
                 std::memcpy(&seconds, memory_->data(r2), sizeof(seconds));
                 std::memcpy(&nanos, memory_->data(r2 + 4), sizeof(nanos));
+                const auto guest_duration =
+                    std::chrono::seconds(seconds) + std::chrono::nanoseconds(nanos);
                 deadline = std::chrono::system_clock::time_point(
-                    std::chrono::seconds(seconds) +
-                    std::chrono::nanoseconds(nanos)
+                    std::chrono::duration_cast<std::chrono::system_clock::duration>(guest_duration)
                 );
             }
             condition->condition.wait_until(lock, deadline);
