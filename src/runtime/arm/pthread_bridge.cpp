@@ -15,6 +15,7 @@ constexpr std::uint32_t kEINVAL = 22;
 constexpr std::uint32_t kEAGAIN = 11;
 constexpr std::uint32_t kEBUSY = 16;
 thread_local std::uint32_t current_thread_handle = 1;
+thread_local std::unordered_map<std::uint32_t, std::uint32_t> thread_local_values;
 }
 
 PthreadBridge::~PthreadBridge() {
@@ -46,6 +47,9 @@ bool PthreadBridge::handles(std::string_view symbol) const {
     static constexpr std::string_view names[] = {
         "pthread_create", "pthread_join", "pthread_detach",
         "pthread_equal", "pthread_self", "pthread_exit",
+        "pthread_key_create", "pthread_key_delete",
+        "pthread_getspecific", "pthread_setspecific",
+        "pthread_setname_np", "pthread_getschedparam",
         "pthread_mutex_init", "pthread_mutex_destroy",
         "pthread_mutex_lock", "pthread_mutex_trylock", "pthread_mutex_unlock",
         "pthread_cond_init", "pthread_cond_destroy",
@@ -197,6 +201,48 @@ void PthreadBridge::handle(std::string_view symbol, GuestCpu& guest) {
     }
 
     if (symbol == "pthread_exit") {
+        guest.set_register(0, 0);
+        return;
+    }
+
+    if (symbol == "pthread_key_create") {
+        static std::uint32_t next_key = 1;
+        if (r0 == 0) {
+            guest.set_register(0, kEINVAL);
+            return;
+        }
+        const auto key = next_key++;
+        if (!memory_->write(r0, &key, sizeof(key))) {
+            guest.set_register(0, kEINVAL);
+            return;
+        }
+        guest.set_register(0, 0);
+        return;
+    }
+
+    if (symbol == "pthread_key_delete") {
+        thread_local_values.erase(r0);
+        guest.set_register(0, 0);
+        return;
+    }
+
+    if (symbol == "pthread_getspecific") {
+        const auto it = thread_local_values.find(r0);
+        guest.set_register(
+            0,
+            it == thread_local_values.end() ? 0u : it->second
+        );
+        return;
+    }
+
+    if (symbol == "pthread_setspecific") {
+        thread_local_values[r0] = r1;
+        guest.set_register(0, 0);
+        return;
+    }
+
+    if (symbol == "pthread_setname_np" ||
+        symbol == "pthread_getschedparam") {
         guest.set_register(0, 0);
         return;
     }
