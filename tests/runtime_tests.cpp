@@ -1,6 +1,8 @@
 #include "mc3/arm/arm_runtime.hpp"
 #include "mc3/game_data.hpp"
 #include "mc3/arm/guest_cpu.hpp"
+#include "mc3/arm/asset_bridge.hpp"
+#include "mc3/arm/dlfcn_bridge.hpp"
 #include "mc3/arm/jni_bridge.hpp"
 #include "mc3/loader/elf32.hpp"
 #include "mc3/loader/imports.hpp"
@@ -229,7 +231,89 @@ int main() {
     assert(import_cpu.run(*stub, false, 20));
     assert(import_cpu.register_value(0) == 0x12345678u);
 
+    const auto asset_root =
+        std::filesystem::temp_directory_path() / "mc3ported-assets-test";
+    std::filesystem::remove_all(asset_root, ec);
+    std::filesystem::create_directories(asset_root, ec);
+    assert(!ec);
+
+    {
+        std::ofstream asset(asset_root / "hello.bin", std::ios::binary);
+        const char bytes[] = "asset-data";
+        asset.write(bytes, sizeof(bytes) - 1);
+    }
+
+    mc3::loader::GuestMemory asset_memory;
+    assert(asset_memory.reserve(0x14000000, 0x2000));
+
+    mc3::arm::AssetBridge assets;
+    assert(assets.configure(
+        asset_memory,
+        asset_root,
+        {},
+        {}
+    ));
+
+    assert(assets.handles("AAssetManager_open"));
+    assert(assets.handles("AAsset_read"));
+    assert(assets.handles("AAsset_seek"));
+    assert(assets.handles("AAsset_getLength"));
+    assert(!assets.handles("AAssetManager_openFile"));
+
+    const auto filename_address =
+        asset_memory.allocate_tail(32, 1);
+    const auto buffer_address =
+        asset_memory.allocate_tail(32, 1);
+    assert(filename_address && buffer_address);
+
+    const char filename[] = "hello.bin";
+    assert(asset_memory.write(
+        *filename_address,
+        filename,
+        sizeof(filename)
+    ));
+
+    mc3::arm::GuestCpu asset_cpu;
+    assert(asset_cpu.initialize(&asset_memory));
+    asset_cpu.set_register(1, *filename_address);
+    assets.handle("AAssetManager_open", asset_cpu);
+
+    const auto asset_handle = asset_cpu.register_value(0);
+    assert(asset_handle != 0);
+
+    asset_cpu.set_register(0, asset_handle);
+    asset_cpu.set_register(1, *buffer_address);
+    asset_cpu.set_register(2, 5);
+    assets.handle("AAsset_read", asset_cpu);
+    assert(asset_cpu.register_value(0) == 5);
+
+    char read_back[6]{};
+    std::memcpy(read_back, asset_memory.data(*buffer_address), 5);
+    assert(std::string(read_back, 5) == "asset");
+
+    asset_cpu.set_register(0, asset_handle);
+    assets.handle("AAsset_getLength", asset_cpu);
+    assert(asset_cpu.register_value(0) == 10);
+
+    asset_cpu.set_register(0, asset_handle);
+    assets.handle("AAsset_close", asset_cpu);
+    assert(asset_cpu.register_value(0) == 0);
+
+    mc3::arm::DlfcnBridge dlfcn;
+
+    const auto dynamic_image = mc3::loader::parse_arm32_elf(elf_path);
+    assert(dynamic_image.has_value());
+    assert(dlfcn.configure(
+        asset_memory,
+        *dynamic_image,
+        0
+    ));
+    assert(dlfcn.handles("dlsym"));
+    assert(dlfcn.handles("dlopen"));
+    assert(!dlfcn.handles("dlwrite"));
+
     std::filesystem::remove(elf_path, ec);
     std::filesystem::remove_all(temp, ec);
+    std::filesystem::remove_all(asset_root, ec);
     return 0;
 }
