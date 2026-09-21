@@ -57,6 +57,12 @@ public:
 
     bool call_entrypoint(const std::string& symbol);
 
+    bool call_registered_native(
+        std::string_view name,
+        std::string_view signature,
+        std::span<const std::uint32_t> arguments = {}
+    );
+
     bool bootstrap_jni();
 
     const RuntimeInfo& info() const { return info_; }
