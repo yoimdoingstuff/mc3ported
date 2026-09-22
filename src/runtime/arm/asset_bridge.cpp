@@ -248,7 +248,7 @@ void AssetBridge::handle(std::string_view symbol, GuestCpu& guest) {
         AssetDirectory directory;
         for (const auto& entry : std::filesystem::directory_iterator(root, ec)) {
             if (ec) break;
-            directory.entries.push_back(entry.path().filename().u8string());
+            directory.entries.push_back(entry.path().filename().string());
         }
         std::sort(directory.entries.begin(), directory.entries.end());
         guest.set_register(0, directory.entries.empty() ? 0 : new_directory_handle(std::move(directory)));
