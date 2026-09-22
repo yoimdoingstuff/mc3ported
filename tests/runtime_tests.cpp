@@ -214,6 +214,17 @@ int main() {
     jni_bridge.handle("jni.fn.33", method_id_cpu);
     assert(method_id_cpu.register_value(0) == 103u);
 
+    // Exercise another reference method lookup used during asset bootstrap.
+    const char zip_name_text[] = "getZipName";
+    assert(jni_memory.write(*method_name, zip_name_text, sizeof(zip_name_text)));
+    mc3::arm::GuestCpu zip_method_cpu;
+    assert(zip_method_cpu.initialize(&jni_memory));
+    zip_method_cpu.set_register(1, 0x22000000u);
+    zip_method_cpu.set_register(2, *method_name);
+    zip_method_cpu.set_register(3, *method_sig);
+    jni_bridge.handle("jni.fn.33", zip_method_cpu);
+    assert(zip_method_cpu.register_value(0) == 149u);
+
     const auto native_name = jni_memory.allocate_tail(32, 1);
     const auto native_signature = jni_memory.allocate_tail(32, 1);
     const auto native_table = jni_memory.allocate_tail(12, 4);
