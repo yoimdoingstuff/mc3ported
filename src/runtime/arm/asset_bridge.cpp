@@ -251,7 +251,7 @@ void AssetBridge::handle(std::string_view symbol, GuestCpu& guest) {
             directory.entries.push_back(entry.path().filename().string());
         }
         std::sort(directory.entries.begin(), directory.entries.end());
-        guest.set_register(0, directory.entries.empty() ? 0 : new_directory_handle(std::move(directory)));
+        guest.set_register(0, new_directory_handle(std::move(directory)));
         return;
     }
 
