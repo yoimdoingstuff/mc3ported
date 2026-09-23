@@ -173,10 +173,10 @@ int main() {
     assert(jni_probe.has_value());
 
     const std::uint16_t jni_thumb[] = {
-        0x6801, // ldr r1, [r0, #0]    ; JNIEnv function table
-        0x690A, // ldr r2, [r1, #16]   ; GetVersion (slot 4)
-        0x4790, // blx r2
-        0x4770  // bx lr
+        0x6801,
+        0x690A,
+        0x4790,
+        0x4770
     };
 
     assert(jni_memory.write(
@@ -196,8 +196,6 @@ int main() {
     );
     assert(jni_guest.register_value(0) == 0x00010006u);
 
-    // Verify reference MC3 Android method IDs resolve to the documented
-    // FalsoJNI identifiers used by the 1.1.7g Vita loader.
     const auto method_name = jni_memory.allocate_tail(32, 1);
     const auto method_sig = jni_memory.allocate_tail(32, 1);
     assert(method_name && method_sig);
@@ -214,7 +212,6 @@ int main() {
     jni_bridge.handle("jni.fn.33", method_id_cpu);
     assert(method_id_cpu.register_value(0) == 103u);
 
-    // Exercise another reference method lookup used during asset bootstrap.
     const char zip_name_text[] = "getZipName";
     assert(jni_memory.write(*method_name, zip_name_text, sizeof(zip_name_text)));
     mc3::arm::GuestCpu zip_method_cpu;
@@ -280,7 +277,6 @@ int main() {
         }
     );
 
-    // Return from the trampoline into an ARM "b ." loop.
     const std::uint32_t loop = 0xEAFFFFFEu;
     assert(cpu_memory.write(
         0x12000000,
@@ -295,13 +291,20 @@ int main() {
     const auto asset_root =
         std::filesystem::temp_directory_path() / "mc3ported-assets-test";
     std::filesystem::remove_all(asset_root, ec);
-    std::filesystem::create_directories(asset_root, ec);
+    std::filesystem::create_directories(asset_root / "empty", ec);
+    std::filesystem::create_directories(asset_root / "dir", ec);
     assert(!ec);
 
     {
         std::ofstream asset(asset_root / "hello.bin", std::ios::binary);
         const char bytes[] = "asset-data";
         asset.write(bytes, sizeof(bytes) - 1);
+    }
+    {
+        std::ofstream first(asset_root / "dir" / "z-last.txt");
+        first << "z";
+        std::ofstream second(asset_root / "dir" / "a-first.txt");
+        second << "a";
     }
 
     mc3::loader::GuestMemory asset_memory;
@@ -321,18 +324,14 @@ int main() {
     assert(assets.handles("AAsset_getLength"));
     assert(!assets.handles("AAssetManager_openFile"));
 
-    const auto filename_address =
-        asset_memory.allocate_tail(32, 1);
-    const auto buffer_address =
-        asset_memory.allocate_tail(32, 1);
-    assert(filename_address && buffer_address);
+    const auto filename_address = asset_memory.allocate_tail(32, 1);
+    const auto buffer_address = asset_memory.allocate_tail(32, 1);
+    const auto dir_name_address = asset_memory.allocate_tail(32, 1);
+    const auto dir_buffer_address = asset_memory.allocate_tail(32, 1);
+    assert(filename_address && buffer_address && dir_name_address && dir_buffer_address);
 
     const char filename[] = "hello.bin";
-    assert(asset_memory.write(
-        *filename_address,
-        filename,
-        sizeof(filename)
-    ));
+    assert(asset_memory.write(*filename_address, filename, sizeof(filename)));
 
     mc3::arm::GuestCpu asset_cpu;
     assert(asset_cpu.initialize(&asset_memory));
@@ -360,6 +359,48 @@ int main() {
     assets.handle("AAsset_close", asset_cpu);
     assert(asset_cpu.register_value(0) == 0);
 
+    const char dir_name[] = "dir";
+    assert(asset_memory.write(*dir_name_address, dir_name, sizeof(dir_name)));
+    asset_cpu.set_register(1, *dir_name_address);
+    assets.handle("AAssetManager_openDir", asset_cpu);
+    const auto dir_handle = asset_cpu.register_value(0);
+    assert(dir_handle != 0);
+
+    asset_cpu.set_register(0, dir_handle);
+    asset_cpu.set_register(1, *dir_buffer_address);
+    assets.handle("AAssetDir_getNextFileName", asset_cpu);
+    char first_name[32]{};
+    std::memcpy(first_name, asset_memory.data(*dir_buffer_address), sizeof(first_name));
+    assert(std::string(first_name) == "a-first.txt");
+
+    asset_cpu.set_register(0, dir_handle);
+    asset_cpu.set_register(1, *dir_buffer_address);
+    assets.handle("AAssetDir_getNextFileName", asset_cpu);
+    char second_name[32]{};
+    std::memcpy(second_name, asset_memory.data(*dir_buffer_address), sizeof(second_name));
+    assert(std::string(second_name) == "z-last.txt");
+
+    asset_cpu.set_register(0, dir_handle);
+    asset_cpu.set_register(1, *dir_buffer_address);
+    assets.handle("AAssetDir_getNextFileName", asset_cpu);
+    assert(asset_cpu.register_value(0) == 0);
+
+    asset_cpu.set_register(0, dir_handle);
+    assets.handle("AAssetDir_close", asset_cpu);
+    assert(asset_cpu.register_value(0) == 0);
+
+    asset_cpu.set_register(1, *dir_name_address);
+    assert(asset_memory.write(*dir_name_address, "empty", 6));
+    assets.handle("AAssetManager_openDir", asset_cpu);
+    const auto empty_dir_handle = asset_cpu.register_value(0);
+    assert(empty_dir_handle != 0);
+    asset_cpu.set_register(0, empty_dir_handle);
+    asset_cpu.set_register(1, *dir_buffer_address);
+    assets.handle("AAssetDir_getNextFileName", asset_cpu);
+    assert(asset_cpu.register_value(0) == 0);
+    asset_cpu.set_register(0, empty_dir_handle);
+    assets.handle("AAssetDir_close", asset_cpu);
+
     mc3::arm::DlfcnBridge dlfcn;
 
     const auto dynamic_image = mc3::loader::parse_arm32_elf(elf_path);
@@ -377,8 +418,8 @@ int main() {
     assert(thread_memory.reserve(0x15000000, 0x4000));
 
     const std::uint8_t thread_code[] = {
-        0x2A, 0x20, // movs r0, #42
-        0x70, 0x47  // bx lr
+        0x2A, 0x20,
+        0x70, 0x47
     };
     assert(thread_memory.write(
         0x15000000,
