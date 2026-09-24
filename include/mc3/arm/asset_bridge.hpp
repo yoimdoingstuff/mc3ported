@@ -51,6 +51,11 @@ private:
         const std::string& entry
     ) const;
 
+    std::vector<std::string> list_zip_directory(
+        const std::filesystem::path& archive,
+        const std::string& directory
+    ) const;
+
     std::optional<std::vector<std::uint8_t>> load_asset(
         std::string_view filename
     ) const;
