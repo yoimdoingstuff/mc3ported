@@ -122,6 +122,35 @@ std::optional<std::vector<std::uint8_t>> AssetBridge::load_from_zip(const std::f
     return result;
 }
 
+std::vector<std::string> AssetBridge::list_zip_directory(const std::filesystem::path& archive,
+                                                          const std::string& directory) const {
+    std::vector<std::string> entries;
+    std::error_code ec;
+    if (archive.empty() || !std::filesystem::is_regular_file(archive, ec)) return entries;
+
+    mz_zip_archive zip{};
+    mz_zip_zero_struct(&zip);
+    const auto archive_name = archive.u8string();
+    if (!mz_zip_reader_init_file(&zip, reinterpret_cast<const char*>(archive_name.c_str()), 0)) return entries;
+
+    const auto prefix = directory.empty() ? std::string{} : directory + "/";
+    const auto count = mz_zip_reader_get_num_files(&zip);
+    for (mz_uint index = 0; index < count; ++index) {
+        mz_zip_archive_file_stat stat{};
+        if (!mz_zip_reader_file_stat(&zip, index, &stat) || !stat.m_filename) continue;
+        const std::string name(stat.m_filename);
+        if (!name.starts_with(prefix) || name.size() == prefix.size()) continue;
+        const auto remainder = name.substr(prefix.size());
+        const auto slash = remainder.find('/');
+        const auto entry = remainder.substr(0, slash);
+        if (entry.empty()) continue;
+        if (std::find(entries.begin(), entries.end(), entry) == entries.end()) entries.push_back(entry);
+    }
+    mz_zip_reader_end(&zip);
+    std::sort(entries.begin(), entries.end());
+    return entries;
+}
+
 std::optional<std::vector<std::uint8_t>> AssetBridge::load_asset(std::string_view filename) const {
     const auto normalized = normalize_asset_name(filename);
     if (normalized.empty()) return std::nullopt;
@@ -243,12 +272,31 @@ void AssetBridge::handle(std::string_view symbol, GuestCpu& guest) {
         const auto normalized = normalize_asset_name(*dirname);
         const auto root = filesystem_assets_root_ / normalized;
         std::error_code ec;
-        if (!std::filesystem::is_directory(root, ec)) { guest.set_register(0, 0); return; }
-
         AssetDirectory directory;
-        for (const auto& entry : std::filesystem::directory_iterator(root, ec)) {
-            if (ec) break;
-            directory.entries.push_back(entry.path().filename().string());
+        if (std::filesystem::is_directory(root, ec)) {
+            for (const auto& entry : std::filesystem::directory_iterator(root, ec)) {
+                if (ec) break;
+                directory.entries.push_back(entry.path().filename().string());
+            }
+        }
+
+        const auto add_zip_entries = [&directory, this, &normalized](const std::filesystem::path& archive) {
+            const auto entries = list_zip_directory(archive, "assets/" + normalized);
+            for (const auto& entry : entries) {
+                if (std::find(directory.entries.begin(), directory.entries.end(), entry) == directory.entries.end()) {
+                    directory.entries.push_back(entry);
+                }
+            }
+        };
+        add_zip_entries(apk_path_);
+        if (!obb_root_.empty()) {
+            add_zip_entries(obb_root_ / "patch.11428.com.gameloft.android.ANMP.GloftM3HM.obb");
+            add_zip_entries(obb_root_ / "main.1120.com.gameloft.android.ANMP.GloftM3HM.obb");
+        }
+
+        if (directory.entries.empty() && !std::filesystem::is_directory(root, ec) && apk_path_.empty() && obb_root_.empty()) {
+            guest.set_register(0, 0);
+            return;
         }
         std::sort(directory.entries.begin(), directory.entries.end());
         guest.set_register(0, new_directory_handle(std::move(directory)));
