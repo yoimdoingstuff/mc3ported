@@ -34,6 +34,28 @@ bool starts_with_path(
     return value.starts_with(prefix);
 }
 
+std::optional<std::filesystem::path> safe_join(
+    const std::filesystem::path& root,
+    std::string_view relative
+) {
+    if (root.empty() || relative.empty()) {
+        return std::nullopt;
+    }
+
+    const std::filesystem::path candidate(relative);
+    if (candidate.is_absolute() || candidate.has_root_name() || candidate.has_root_directory()) {
+        return std::nullopt;
+    }
+
+    for (const auto& component : candidate) {
+        if (component == "..") {
+            return std::nullopt;
+        }
+    }
+
+    return (root / candidate).lexically_normal();
+}
+
 } // namespace
 
 bool AndroidFsBridge::configure(
@@ -99,28 +121,23 @@ std::optional<std::filesystem::path> AndroidFsBridge::resolve(
         "sdcard/Android/obb/" + std::string(kPackage) + "/";
 
     if (starts_with_path(path, app_prefix)) {
-        return app_root_ /
-            std::filesystem::path(path.substr(app_prefix.size()));
+        return safe_join(app_root_, path.substr(app_prefix.size()));
     }
 
     if (starts_with_path(path, external_prefix)) {
-        return external_root_ /
-            std::filesystem::path(path.substr(external_prefix.size()));
+        return safe_join(external_root_, path.substr(external_prefix.size()));
     }
 
     if (starts_with_path(path, external_prefix_dot)) {
-        return external_root_ /
-            std::filesystem::path(path.substr(external_prefix_dot.size()));
+        return safe_join(external_root_, path.substr(external_prefix_dot.size()));
     }
 
     if (starts_with_path(path, obb_prefix)) {
-        return obb_root_ /
-            std::filesystem::path(path.substr(obb_prefix.size()));
+        return safe_join(obb_root_, path.substr(obb_prefix.size()));
     }
 
     if (starts_with_path(path, obb_prefix_dot)) {
-        return obb_root_ /
-            std::filesystem::path(path.substr(obb_prefix_dot.size()));
+        return safe_join(obb_root_, path.substr(obb_prefix_dot.size()));
     }
 
     if (path == "main.1120.com.gameloft.android.ANMP.GloftM3HM.obb" ||
@@ -135,7 +152,7 @@ std::optional<std::filesystem::path> AndroidFsBridge::resolve(
     }
 
     if (!path.starts_with('/')) {
-        return data_root_ / std::filesystem::path(path);
+        return safe_join(data_root_, path);
     }
 
     return std::nullopt;
