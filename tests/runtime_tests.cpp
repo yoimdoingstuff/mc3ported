@@ -5,6 +5,7 @@
 #include "mc3/arm/dlfcn_bridge.hpp"
 #include "mc3/arm/pthread_bridge.hpp"
 #include "mc3/arm/jni_bridge.hpp"
+#include "mc3/arm/android_fs_bridge.hpp"
 #include "mc3/loader/elf32.hpp"
 #include "mc3/loader/imports.hpp"
 #include "mc3/loader/memory.hpp"
@@ -400,6 +401,38 @@ int main() {
     assert(asset_cpu.register_value(0) == 0);
     asset_cpu.set_register(0, empty_dir_handle);
     assets.handle("AAssetDir_close", asset_cpu);
+
+    mc3::arm::AndroidFsBridge filesystem_bridge;
+    const auto fs_root =
+        std::filesystem::temp_directory_path() / "mc3ported-fs-test";
+    std::filesystem::remove_all(fs_root, ec);
+    assert(filesystem_bridge.configure(
+        fs_root / "obb",
+        fs_root / "app",
+        fs_root / "external",
+        fs_root / "data"
+    ));
+
+    const auto safe_app = filesystem_bridge.resolve(
+        "/data/data/com.gameloft.android.ANMP.GloftM3HM/config/settings.bin"
+    );
+    assert(safe_app.has_value());
+    assert(*safe_app == (fs_root / "app" / "config" / "settings.bin"));
+
+    assert(!filesystem_bridge.resolve(
+        "/data/data/com.gameloft.android.ANMP.GloftM3HM/../outside.txt"
+    ).has_value());
+    assert(!filesystem_bridge.resolve(
+        "relative/../../outside.txt"
+    ).has_value());
+    assert(!filesystem_bridge.resolve(
+        "/sdcard/Android/data/com.gameloft.android.ANMP.GloftM3HM/files/../outside.txt"
+    ).has_value());
+    assert(!filesystem_bridge.resolve(
+        "safe/../../outside.txt"
+    ).has_value());
+
+    std::filesystem::remove_all(fs_root, ec);
 
     mc3::arm::DlfcnBridge dlfcn;
 
