@@ -103,8 +103,8 @@ std::optional<std::vector<std::uint8_t>> AssetBridge::load_from_zip(const std::f
 
     mz_zip_archive zip{};
     mz_zip_zero_struct(&zip);
-    const auto archive_name = archive.u8string();
-    if (!mz_zip_reader_init_file(&zip, reinterpret_cast<const char*>(archive_name.c_str()), 0)) return std::nullopt;
+    const auto archive_name = archive.string();
+    if (!mz_zip_reader_init_file(&zip, archive_name.c_str(), 0)) return std::nullopt;
 
     std::optional<std::vector<std::uint8_t>> result;
     const int index = mz_zip_reader_locate_file(&zip, entry.c_str(), nullptr, MZ_ZIP_FLAG_CASE_SENSITIVE);
@@ -130,8 +130,8 @@ std::vector<std::string> AssetBridge::list_zip_directory(const std::filesystem::
 
     mz_zip_archive zip{};
     mz_zip_zero_struct(&zip);
-    const auto archive_name = archive.u8string();
-    if (!mz_zip_reader_init_file(&zip, reinterpret_cast<const char*>(archive_name.c_str()), 0)) return entries;
+    const auto archive_name = archive.string();
+    if (!mz_zip_reader_init_file(&zip, archive_name.c_str(), 0)) return entries;
 
     const auto prefix = directory.empty() ? std::string{} : directory + "/";
     const auto count = mz_zip_reader_get_num_files(&zip);
