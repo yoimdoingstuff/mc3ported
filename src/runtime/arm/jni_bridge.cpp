@@ -233,6 +233,9 @@ bool JniBridge::initialize(
 ) {
     memory_ = &memory;
     imports_ = &imports;
+    registered_natives_.clear();
+    jni_reference_backing_.clear();
+    next_jni_reference_ = 0xF0000001u;
 
     env_table_ =
         allocate_function_table(
@@ -339,6 +342,28 @@ bool JniBridge::handles(std::string_view symbol) const {
         symbol.starts_with("jni.vm.");
 }
 
+std::uint32_t JniBridge::allocate_jni_reference(std::uint32_t backing_address) {
+    if (backing_address == 0) {
+        return 0;
+    }
+
+    while (next_jni_reference_ == 0 ||
+           jni_reference_backing_.contains(next_jni_reference_)) {
+        ++next_jni_reference_;
+    }
+
+    const auto reference = next_jni_reference_++;
+    jni_reference_backing_.emplace(reference, backing_address);
+    return reference;
+}
+
+std::uint32_t JniBridge::resolve_jni_reference(
+    std::uint32_t reference
+) const {
+    const auto it = jni_reference_backing_.find(reference);
+    return it == jni_reference_backing_.end() ? reference : it->second;
+}
+
 std::uint32_t JniBridge::hash_handle(
     GuestCpu& guest,
     std::uint32_t first_arg,
@@ -372,6 +397,8 @@ std::uint32_t JniBridge::read_guest_string_length(
         return 0;
     }
 
+    address = resolve_jni_reference(address);
+
     constexpr std::uint32_t maximum = 4096;
 
     for (std::uint32_t i = 0; i < maximum; ++i) {
@@ -392,6 +419,8 @@ std::string JniBridge::read_guest_string(
     if (!memory_ || address == 0 || maximum == 0) {
         return {};
     }
+
+    address = resolve_jni_reference(address);
 
     std::string result;
     result.reserve(maximum);
@@ -482,9 +511,26 @@ void JniBridge::handle(
             guest.set_register(0, 0x00010006u);
             return;
 
-        case kJniFindClass:
-            guest.set_register(0, guest.register_value(1));
+        case kJniFindClass: {
+            const auto class_name =
+                read_guest_string(guest.register_value(1), 1024);
+            if (class_name.empty()) {
+                guest.set_register(0, 0);
+                return;
+            }
+
+            const auto backing = allocate_guest_string(*memory_, class_name);
+            if (!backing) {
+                guest.set_register(0, 0);
+                return;
+            }
+
+            guest.set_register(
+                0,
+                allocate_jni_reference(*backing)
+            );
             return;
+        }
 
         case kJniGetMethodId:
         case kJniGetStaticMethodId: {
@@ -532,9 +578,27 @@ void JniBridge::handle(
             return;
         }
 
-        case kJniNewStringUtf:
-            guest.set_register(0, guest.register_value(1));
+        case kJniNewStringUtf: {
+            const auto source = guest.register_value(1);
+            const auto length = read_guest_string_length(guest, source);
+            if (source == 0 || length == 0) {
+                guest.set_register(0, 0);
+                return;
+            }
+
+            const auto value = read_guest_string(source, length);
+            const backing = allocate_guest_string(*memory_, value);
+            if (!backing) {
+                guest.set_register(0, 0);
+                return;
+            }
+
+            guest.set_register(
+                0,
+                allocate_jni_reference(*backing)
+            );
             return;
+        }
 
         // JNI method invocation slots are fixed by the JNI interface table.
         // The method IDs below mirror the reference MC3 Vita loader's
@@ -676,7 +740,6 @@ void JniBridge::handle(
             return;
 
         case kJniGetStringUtfLength:
-        case kJniGetArrayLength:
             guest.set_register(
                 0,
                 read_guest_string_length(
@@ -688,7 +751,14 @@ void JniBridge::handle(
 
         case kJniGetStringUtfChars:
         case 165:
-            guest.set_register(0, guest.register_value(1));
+            guest.set_register(
+                0,
+                resolve_jni_reference(guest.register_value(1))
+            );
+            return;
+
+        case kJniGetArrayLength:
+            guest.set_register(0, 0);
             return;
 
         case kJniReleaseStringUtfChars:
