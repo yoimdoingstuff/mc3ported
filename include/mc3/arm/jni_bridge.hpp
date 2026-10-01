@@ -44,6 +44,7 @@ public:
 
     std::uint32_t vm_pointer() const { return vm_pointer_; }
     std::uint32_t env_pointer() const { return env_pointer_; }
+    std::uint32_t find_class_reference(std::string_view class_name);
     const std::vector<RegisteredNative>& registered_natives() const { return registered_natives_; }
 
     std::optional<RegisteredNative> find_registered_native(
