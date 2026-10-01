@@ -581,7 +581,7 @@ void JniBridge::handle(
         case kJniNewStringUtf: {
             const auto source = guest.register_value(1);
             const auto length = read_guest_string_length(guest, source);
-            if (source == 0 || length == 0) {
+            if (source == 0) {
                 guest.set_register(0, 0);
                 return;
             }
