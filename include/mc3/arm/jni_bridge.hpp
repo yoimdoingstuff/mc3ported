@@ -8,6 +8,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace mc3::arm {
@@ -70,6 +71,10 @@ private:
         std::uint32_t second_arg
     ) const;
 
+    std::uint32_t allocate_jni_reference(std::uint32_t backing_address);
+
+    std::uint32_t resolve_jni_reference(std::uint32_t reference) const;
+
     std::uint32_t read_guest_string_length(
         GuestCpu& guest,
         std::uint32_t address
@@ -90,9 +95,11 @@ private:
     std::uint32_t env_pointer_ = 0;
     std::uint32_t vm_table_ = 0;
     std::uint32_t env_table_ = 0;
+    std::uint32_t next_jni_reference_ = 0xF0000001u;
     loader::GuestMemory* memory_ = nullptr;
     loader::GuestImportTable* imports_ = nullptr;
     std::vector<RegisteredNative> registered_natives_;
+    std::unordered_map<std::uint32_t, std::uint32_t> jni_reference_backing_;
 };
 
 } // namespace mc3::arm
