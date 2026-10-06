@@ -101,6 +101,7 @@ private:
     loader::GuestImportTable* imports_ = nullptr;
     std::vector<RegisteredNative> registered_natives_;
     std::unordered_map<std::uint32_t, std::uint32_t> jni_reference_backing_;
+    std::unordered_map<std::string, std::uint32_t> jni_class_references_;
 };
 
 } // namespace mc3::arm
