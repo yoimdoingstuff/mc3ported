@@ -544,16 +544,7 @@ void JniBridge::handle(
                 return;
             }
 
-            const auto backing = allocate_guest_string(*memory_, class_name);
-            if (!backing) {
-                guest.set_register(0, 0);
-                return;
-            }
-
-            guest.set_register(
-                0,
-                allocate_jni_reference(*backing)
-            );
+            guest.set_register(0, find_class_reference(class_name));
             return;
         }
 
