@@ -235,6 +235,7 @@ bool JniBridge::initialize(
     imports_ = &imports;
     registered_natives_.clear();
     jni_reference_backing_.clear();
+    jni_class_references_.clear();
     next_jni_reference_ = 0xF0000001u;
 
     env_table_ =
@@ -340,6 +341,30 @@ bool JniBridge::handles(std::string_view symbol) const {
     return
         symbol.starts_with("jni.fn.") ||
         symbol.starts_with("jni.vm.");
+}
+
+std::uint32_t JniBridge::find_class_reference(std::string_view class_name) {
+    if (!memory_ || class_name.empty()) {
+        return 0;
+    }
+
+    const auto existing = jni_class_references_.find(std::string(class_name));
+    if (existing != jni_class_references_.end()) {
+        return existing->second;
+    }
+
+    const auto backing = allocate_guest_string(*memory_, class_name);
+    if (!backing) {
+        return 0;
+    }
+
+    const auto reference = allocate_jni_reference(*backing);
+    if (reference == 0) {
+        return 0;
+    }
+
+    jni_class_references_.emplace(std::string(class_name), reference);
+    return reference;
 }
 
 std::uint32_t JniBridge::allocate_jni_reference(std::uint32_t backing_address) {
