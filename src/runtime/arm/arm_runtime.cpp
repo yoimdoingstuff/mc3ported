@@ -407,19 +407,22 @@ bool ArmRuntime::bootstrap_jni() {
         return true;
     };
 
-    constexpr std::uint32_t dummy_class = 0x42424242u;
+    const auto gl2jni_class = jni_->find_class_reference("com/gameloft/glf/GL2JNILib");
+    const auto billing_class = jni_->find_class_reference("com/gameloft/android/ANMP/GloftM3HM/iab/InAppBilling");
+    const auto game_activity_class = jni_->find_class_reference("com/gameloft/android/ANMP/GloftM3HM/GloftM3HM");
     constexpr std::uint32_t dummy_object = 0x24242424u;
+    if (gl2jni_class == 0 || billing_class == 0 || game_activity_class == 0) return false;
 
     if (!call_required(
             "Java_com_gameloft_glf_GL2JNILib_init",
-            {env, dummy_class}
+            {env, gl2jni_class}
         )) {
         return false;
     }
 
     if (!call_required(
             "Java_com_gameloft_android_ANMP_GloftM3HM_iab_InAppBilling_nativeInit",
-            {env, dummy_class, dummy_object}
+            {env, billing_class, dummy_object}
         )) {
         return false;
     }
@@ -433,14 +436,14 @@ bool ArmRuntime::bootstrap_jni() {
 
     if (!call_required(
             "Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_Init",
-            {env, dummy_class}
+            {env, game_activity_class}
         )) {
         return false;
     }
 
     if (!call_required(
             "Java_com_gameloft_android_ANMP_GloftM3HM_GloftM3HM_nativeMC3Init",
-            {env, dummy_class}
+            {env, game_activity_class}
         )) {
         return false;
     }
@@ -454,7 +457,7 @@ bool ArmRuntime::bootstrap_jni() {
 
     if (!call_required(
             "Java_com_gameloft_glf_GL2JNILib_resize",
-            {env, dummy_class, 960u, 544u}
+            {env, gl2jni_class, 960u, 544u}
         )) {
         return false;
     }
