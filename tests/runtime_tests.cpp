@@ -165,6 +165,14 @@ int main() {
     assert(jni_bridge.handles("jni.vm.6"));
     assert(!jni_bridge.handles("libc.so"));
 
+    const auto class_ref_a = jni_bridge.find_class_reference("com/gameloft/glf/GL2JNILib");
+    const auto class_ref_b = jni_bridge.find_class_reference("com/gameloft/glf/GL2JNILib");
+    const auto class_ref_other = jni_bridge.find_class_reference("com/gameloft/android/ANMP/GloftM3HM/GloftM3HM");
+    assert(class_ref_a != 0);
+    assert(class_ref_a == class_ref_b);
+    assert(class_ref_other != 0);
+    assert(class_ref_other != class_ref_a);
+
     mc3::arm::GuestCpu jni_cpu;
     assert(jni_cpu.initialize(&jni_memory));
     jni_bridge.handle("jni.fn.4", jni_cpu);
