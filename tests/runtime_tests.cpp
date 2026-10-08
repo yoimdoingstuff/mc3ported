@@ -173,6 +173,22 @@ int main() {
     assert(class_ref_other != 0);
     assert(class_ref_other != class_ref_a);
 
+    const auto find_class_name = jni_memory.allocate_tail(64, 1);
+    assert(find_class_name.has_value());
+    const char find_class_text[] = "com/gameloft/glf/GL2JNILib";
+    assert(jni_memory.write(*find_class_name, find_class_text, sizeof(find_class_text)));
+    mc3::arm::GuestCpu find_class_cpu_a;
+    assert(find_class_cpu_a.initialize(&jni_memory));
+    find_class_cpu_a.set_register(1, *find_class_name);
+    jni_bridge.handle("jni.fn.6", find_class_cpu_a);
+    const auto find_class_ref_a = find_class_cpu_a.register_value(0);
+    mc3::arm::GuestCpu find_class_cpu_b;
+    assert(find_class_cpu_b.initialize(&jni_memory));
+    find_class_cpu_b.set_register(1, *find_class_name);
+    jni_bridge.handle("jni.fn.6", find_class_cpu_b);
+    assert(find_class_ref_a != 0);
+    assert(find_class_cpu_b.register_value(0) == find_class_ref_a);
+
     mc3::arm::GuestCpu jni_cpu;
     assert(jni_cpu.initialize(&jni_memory));
     jni_bridge.handle("jni.fn.4", jni_cpu);
